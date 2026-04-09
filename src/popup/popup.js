@@ -168,14 +168,14 @@ async function captureCurrentPage() {
     }
 
     // Position from tab title (first part before dash/pipe)
-    // Skip for LinkedIn — tab title is never the job title on split-view pages
-    if (!scrapedData.position && tab.title && !host.includes('linkedin.')) {
+    if (!scrapedData.position && tab.title) {
       const titleParts = tab.title.split(/\s*[-|–—|]\s*/);
       if (titleParts.length > 0) {
         // Strip notification count prefix like "(2) " and reject generic leftovers
         const raw = titleParts[0].trim().substring(0, 100);
         const cleaned = raw.replace(/^\(\d+\)\s*/, '');
-        if (cleaned.length > 3 && !cleaned.match(/^top\b/i)) {
+        // Filter out generic/platform titles
+        if (cleaned.length > 3 && !cleaned.match(/^(top|jobs|linkedin|home|feed|messaging|notifications|my network|mein netzwerk|nachrichten)\b/i)) {
           scrapedData.position = cleaned;
         }
       }
