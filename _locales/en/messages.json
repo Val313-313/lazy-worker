@@ -1,0 +1,214 @@
+{
+  "extName": {
+    "message": "Lazy Worker - RAV Applications Helper",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Automatically capture job applications and auto-fill the RAV form with one click",
+    "description": "Extension description"
+  },
+  "popup_title": {
+    "message": "Lazy Worker",
+    "description": "Popup title"
+  },
+  "popup_subtitle": {
+    "message": "RAV Applications Helper",
+    "description": "Popup subtitle"
+  },
+  "stat_this_month": {
+    "message": "This Month",
+    "description": "This month stats label"
+  },
+  "stat_pending": {
+    "message": "Pending",
+    "description": "Pending applications label"
+  },
+  "stat_submitted": {
+    "message": "Submitted",
+    "description": "Submitted to RAV label"
+  },
+  "btn_add_new": {
+    "message": "New Application",
+    "description": "Add new application button"
+  },
+  "btn_export": {
+    "message": "Export CSV",
+    "description": "Export CSV button"
+  },
+  "applications_title": {
+    "message": "Applications",
+    "description": "Applications section title"
+  },
+  "filter_all": {
+    "message": "All",
+    "description": "Filter: All"
+  },
+  "filter_pending": {
+    "message": "Pending",
+    "description": "Filter: Pending"
+  },
+  "filter_submitted": {
+    "message": "Submitted",
+    "description": "Filter: Submitted"
+  },
+  "empty_state": {
+    "message": "No applications yet",
+    "description": "Empty state message"
+  },
+  "empty_hint": {
+    "message": "Apply on jobs.ch, LinkedIn or Indeed - applications are captured automatically!",
+    "description": "Empty state hint"
+  },
+  "modal_title_new": {
+    "message": "New Application",
+    "description": "Modal title for new application"
+  },
+  "modal_title_edit": {
+    "message": "Edit Application",
+    "description": "Modal title for editing application"
+  },
+  "field_date": {
+    "message": "Date",
+    "description": "Date field label"
+  },
+  "field_method": {
+    "message": "Application Method",
+    "description": "Application method field label"
+  },
+  "field_company": {
+    "message": "Company",
+    "description": "Company field label"
+  },
+  "field_position": {
+    "message": "Position",
+    "description": "Position field label"
+  },
+  "field_street": {
+    "message": "Street",
+    "description": "Street field label"
+  },
+  "field_number": {
+    "message": "No.",
+    "description": "Street number field label"
+  },
+  "field_postal_code": {
+    "message": "Postal Code",
+    "description": "Postal code field label"
+  },
+  "field_city": {
+    "message": "City",
+    "description": "City field label"
+  },
+  "field_country": {
+    "message": "Country",
+    "description": "Country field label"
+  },
+  "field_workload": {
+    "message": "Workload",
+    "description": "Workload field label"
+  },
+  "field_rav_assignment": {
+    "message": "RAV Assignment",
+    "description": "RAV assignment field label"
+  },
+  "field_result": {
+    "message": "Result",
+    "description": "Result field label"
+  },
+  "field_url": {
+    "message": "Job URL",
+    "description": "Source URL field label"
+  },
+  "field_notes": {
+    "message": "Notes",
+    "description": "Notes field label"
+  },
+  "method_electronic": {
+    "message": "Electronic",
+    "description": "Electronic application method"
+  },
+  "method_mail": {
+    "message": "Mail",
+    "description": "Mail application method"
+  },
+  "method_personal": {
+    "message": "In Person",
+    "description": "Personal application method"
+  },
+  "method_phone": {
+    "message": "Phone",
+    "description": "Phone application method"
+  },
+  "workload_fulltime": {
+    "message": "Full-time",
+    "description": "Full-time workload"
+  },
+  "workload_parttime": {
+    "message": "Part-time",
+    "description": "Part-time workload"
+  },
+  "result_open": {
+    "message": "Still Open",
+    "description": "Open result status"
+  },
+  "result_interview": {
+    "message": "Interview",
+    "description": "Interview result status"
+  },
+  "result_hired": {
+    "message": "Hired",
+    "description": "Hired result status"
+  },
+  "result_rejected": {
+    "message": "Rejected",
+    "description": "Rejected result status"
+  },
+  "btn_save": {
+    "message": "Save",
+    "description": "Save button"
+  },
+  "btn_cancel": {
+    "message": "Cancel",
+    "description": "Cancel button"
+  },
+  "btn_delete": {
+    "message": "Delete",
+    "description": "Delete button"
+  },
+  "toast_saved": {
+    "message": "Application saved",
+    "description": "Application saved toast"
+  },
+  "toast_updated": {
+    "message": "Application updated",
+    "description": "Application updated toast"
+  },
+  "toast_deleted": {
+    "message": "Application deleted",
+    "description": "Application deleted toast"
+  },
+  "toast_exported": {
+    "message": "Export successful",
+    "description": "Export success toast"
+  },
+  "toast_error": {
+    "message": "An error occurred",
+    "description": "Error toast"
+  },
+  "notification_captured": {
+    "message": "Application captured",
+    "description": "Application captured notification"
+  },
+  "notification_filled": {
+    "message": "Form filled",
+    "description": "Form filled notification"
+  },
+  "confirm_delete": {
+    "message": "Really delete this application?",
+    "description": "Delete confirmation"
+  },
+  "confirm_mark_submitted": {
+    "message": "Mark application as 'submitted to RAV'?",
+    "description": "Mark as submitted confirmation"
+  }
+}

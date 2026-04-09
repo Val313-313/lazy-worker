@@ -1,0 +1,14 @@
+{
+  "name": "lazy-worker",
+  "version": "1.0.0",
+  "description": "Chrome extension for Swiss job seekers - auto-capture applications and fill RAV forms",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

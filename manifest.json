@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "Lazy Worker - RAV Bewerbungen Helper",
+  "version": "1.0.0",
+  "description": "Erfasse Bewerbungen automatisch und fülle das RAV-Formular mit einem Klick aus",
+  "default_locale": "de",
+
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+
+  "host_permissions": [
+    "https://www.job-room.ch/*",
+    "https://job-room.ch/*",
+    "https://www.arbeit.swiss/*",
+    "https://arbeit.swiss/*",
+    "https://www.jobs.ch/*",
+    "https://www.jobup.ch/*",
+    "https://www.linkedin.com/*",
+    "https://linkedin.com/*",
+    "https://ch.indeed.com/*",
+    "https://www.indeed.ch/*"
+  ],
+
+  "background": {
+    "service_worker": "dist/background/service-worker.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.job-room.ch/*", "https://job-room.ch/*"],
+      "js": ["dist/content/job-room.js"]
+    },
+    {
+      "matches": ["https://www.arbeit.swiss/*", "https://arbeit.swiss/*"],
+      "js": ["dist/content/arbeit-swiss.js"],
+      "css": ["dist/content/arbeit-swiss.css"]
+    },
+    {
+      "matches": ["https://www.jobs.ch/*", "https://www.jobup.ch/*"],
+      "js": ["dist/content/jobs-ch.js"]
+    },
+    {
+      "matches": ["https://www.linkedin.com/jobs/*", "https://linkedin.com/jobs/*"],
+      "js": ["dist/content/linkedin.js"]
+    },
+    {
+      "matches": ["https://ch.indeed.com/*", "https://www.indeed.ch/*"],
+      "js": ["dist/content/indeed.js"]
+    }
+  ],
+
+  "action": {
+    "default_popup": "dist/popup/popup.html",
+    "default_icon": {
+      "16": "dist/assets/icon-16.png",
+      "48": "dist/assets/icon-48.png",
+      "128": "dist/assets/icon-128.png"
+    }
+  },
+
+  "icons": {
+    "16": "dist/assets/icon-16.png",
+    "48": "dist/assets/icon-48.png",
+    "128": "dist/assets/icon-128.png"
+  }
+}

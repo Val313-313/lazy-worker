@@ -1,0 +1,126 @@
+# 🦥 Lazy Worker - RAV Bewerbungen Helper
+
+Eine Chrome-Erweiterung für Schweizer Arbeitssuchende, die Bewerbungen automatisch erfasst und das RAV-Formular "Nachweis der persönlichen Arbeitsbemühungen" mit einem Klick ausfüllt.
+
+## Features
+
+- **Automatische Erfassung**: Bewerbungen auf jobs.ch, LinkedIn und Indeed werden automatisch erkannt
+- **Ein-Klick-Ausfüllung**: Das RAV-Formular auf arbeit.swiss wird automatisch ausgefüllt
+- **Lokale Speicherung**: Alle Daten bleiben auf deinem Computer - keine Cloud, keine Server
+- **CSV-Export**: Exportiere alle Bewerbungen für deine Unterlagen
+- **Mehrsprachig**: Deutsch und Englisch
+
+## Installation (Entwicklermodus)
+
+1. **Icons generieren** (einmalig):
+   - Öffne `generate-icons.html` im Browser
+   - Lade alle drei Icon-Grössen herunter
+   - Verschiebe sie nach `src/assets/`
+
+2. **Extension laden**:
+   - Öffne Chrome und gehe zu `chrome://extensions/`
+   - Aktiviere "Entwicklermodus" (oben rechts)
+   - Klicke "Entpackte Erweiterung laden"
+   - Wähle den `Lazy Worker` Ordner
+
+## Verwendung
+
+### Bewerbungen erfassen
+
+1. Gehe auf jobs.ch, LinkedIn oder Indeed
+2. Suche einen Job und klicke auf "Bewerben"
+3. Die Bewerbung wird automatisch erfasst (Notification erscheint)
+
+### RAV-Formular ausfüllen
+
+1. Logge dich bei arbeit.swiss ein
+2. Gehe zum Formular "Nachweis der persönlichen Arbeitsbemühungen"
+3. Klicke auf den "🦥 Lazy Worker" Button (unten rechts)
+4. Wähle eine Bewerbung und klicke "Ausfüllen"
+5. Überprüfe die Daten und sende das Formular ab
+
+### Bewerbungen verwalten
+
+- Klicke auf das Extension-Icon in der Chrome-Toolbar
+- Hier kannst du:
+  - Alle Bewerbungen ansehen
+  - Neue Bewerbungen manuell hinzufügen
+  - Bestehende bearbeiten oder löschen
+  - Als CSV exportieren
+
+## Projektstruktur
+
+```
+Lazy Worker/
+├── manifest.json           # Chrome Extension Manifest V3
+├── src/
+│   ├── background/
+│   │   └── service-worker.js   # Background Service Worker
+│   ├── content/
+│   │   ├── arbeit-swiss.js     # Form Filler für RAV
+│   │   ├── arbeit-swiss.css    # Styles für Floating UI
+│   │   ├── jobs-ch.js          # Scraper für jobs.ch/jobup.ch
+│   │   ├── linkedin.js         # Scraper für LinkedIn
+│   │   ├── indeed.js           # Scraper für Indeed
+│   │   └── common.js           # Gemeinsame Scraping-Utilities
+│   ├── popup/
+│   │   ├── popup.html          # Popup UI
+│   │   ├── popup.css           # Popup Styles
+│   │   └── popup.js            # Popup Logic
+│   ├── lib/
+│   │   ├── storage.js          # Chrome Storage Wrapper
+│   │   ├── types.js            # TypeScript-ähnliche Type Definitions
+│   │   └── utils.js            # Hilfsfunktionen
+│   └── assets/
+│       └── icon-*.png          # Extension Icons
+└── public/
+    └── _locales/
+        ├── de/messages.json    # Deutsche Übersetzungen
+        └── en/messages.json    # Englische Übersetzungen
+```
+
+## Unterstützte Job-Portale
+
+| Portal | Auto-Capture | Status |
+|--------|--------------|--------|
+| jobs.ch | ✅ | Vollständig |
+| jobup.ch | ✅ | Vollständig |
+| LinkedIn | ✅ | Vollständig |
+| Indeed.ch | ✅ | Vollständig |
+
+## Datenschutz
+
+- **Keine Datenübertragung**: Alle Daten bleiben lokal auf deinem Computer
+- **Kein Tracking**: Keine Analytics oder Telemetrie
+- **Minimale Berechtigungen**: Nur Zugriff auf die notwendigen Websites
+- **Open Source**: Der Code kann jederzeit überprüft werden
+
+## Technologie
+
+- Chrome Extension Manifest V3
+- Vanilla JavaScript (ES Modules)
+- Chrome Storage API
+- Content Scripts für Job-Board-Scraping
+
+## Bekannte Einschränkungen
+
+- Das arbeit.swiss Formular muss manuell aufgerufen werden
+- Bei Änderungen an den Job-Portalen können Scraper angepasst werden müssen
+- LinkedIn Easy Apply erfasst nicht immer alle Details
+
+## Weiterentwicklung
+
+Mögliche zukünftige Features:
+- [ ] Firefox-Unterstützung
+- [ ] Weitere Job-Portale (xing, jobscout24)
+- [ ] Automatische Adress-Suche
+- [ ] Dark Mode
+- [ ] Statistiken und Grafiken
+
+## Lizenz
+
+MIT License - Frei verwendbar und anpassbar.
+
+---
+
+Entwickelt mit 🦥 für alle, die ihre Arbeitsbemühungen effizient dokumentieren möchten.

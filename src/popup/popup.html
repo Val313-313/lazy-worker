@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lazy Worker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <div class="logo">
+          <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
+            <path d="M10 20C10 20 12 22 16 22C20 22 22 20 22 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="11" cy="14" r="2" fill="currentColor"/>
+            <circle cx="21" cy="14" r="2" fill="currentColor"/>
+            <path d="M8 12C8 12 9 10 11 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M24 12C24 12 23 10 21 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <div class="logo-text">
+            <h1>Lazy Worker</h1>
+            <span class="tagline">RAV Bewerbungs-Tracker</span>
+          </div>
+        </div>
+        <button class="help-btn" id="helpBtn" title="Hilfe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats-container">
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value" id="monthlyCount">0</span>
+          <span class="stat-label">Diesen Monat</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-warning">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value" id="pendingCount">0</span>
+          <span class="stat-label">Ausstehend</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-success">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value" id="submittedCount">0</span>
+          <span class="stat-label">Eingereicht</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Action -->
+    <div class="action-section">
+      <button class="capture-btn" id="captureBtn">
+        <svg class="capture-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span>Seite erfassen</span>
+      </button>
+    </div>
+
+    <!-- Applications List -->
+    <div class="list-section">
+      <div class="list-header">
+        <h2>Bewerbungen</h2>
+        <div class="list-header-actions">
+          <button class="icon-btn icon-btn-danger" id="deleteAllBtn" title="Alle löschen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="exportBtn" title="Als CSV exportieren">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="applications-list" id="applicationsList">
+        <div class="empty-state">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+          </svg>
+          <p>Keine Bewerbungen</p>
+          <span class="empty-hint">Öffne ein Job-Inserat und klicke "Seite erfassen"</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help View -->
+    <div class="help-view" id="helpView">
+      <div class="help-header">
+        <h2>Hilfe</h2>
+        <button class="modal-close" id="closeHelp">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="help-content">
+        <div class="help-section">
+          <h3>Was ist Lazy Worker?</h3>
+          <p>Lazy Worker erfasst automatisch deine Job-Bewerbungen und hilft dir, das RAV-Formular "Nachweis der persoenlichen Arbeitsbemuehungen" auf arbeit.swiss auszufuellen.</p>
+        </div>
+
+        <div class="help-section">
+          <h3>Bewerbung erfassen</h3>
+          <p>1. Oeffne ein Job-Inserat auf einer der unterstuetzten Plattformen</p>
+          <p>2. Klicke auf <strong>"Seite erfassen"</strong></p>
+          <p>3. Firma, Stelle und Ort werden automatisch erkannt</p>
+        </div>
+
+        <div class="help-section">
+          <h3>Unterstuetzte Plattformen</h3>
+          <div class="help-platforms">
+            <span class="help-tag">jobs.ch</span>
+            <span class="help-tag">jobup.ch</span>
+            <span class="help-tag">LinkedIn</span>
+            <span class="help-tag">Indeed</span>
+            <span class="help-tag">job-room.ch</span>
+          </div>
+          <p class="help-hint">Andere Seiten werden ebenfalls unterstuetzt, die Erkennung kann aber weniger genau sein.</p>
+        </div>
+
+        <div class="help-section">
+          <h3>Bearbeiten & Loeschen</h3>
+          <p>Klicke auf eine Bewerbung, um sie zu bearbeiten. Mit dem <strong>X</strong> auf der Karte kannst du sie direkt loeschen.</p>
+        </div>
+
+        <div class="help-section">
+          <h3>RAV-Formular ausfuellen</h3>
+          <p>1. Gehe auf <strong>arbeit.swiss</strong> und oeffne das Nachweisformular</p>
+          <p>2. Der <strong>Lazy Worker Button</strong> erscheint unten rechts</p>
+          <p>3. Waehle eine Bewerbung aus und die Felder werden automatisch ausgefuellt</p>
+        </div>
+
+        <div class="help-section">
+          <h3>CSV Export</h3>
+          <p>Mit dem <strong>Download-Button</strong> oben rechts kannst du alle Bewerbungen als CSV-Datei exportieren.</p>
+        </div>
+
+        <div class="help-section">
+          <h3>Datenschutz</h3>
+          <p>Alle Daten werden <strong>lokal in deinem Browser</strong> gespeichert. Es werden keine Daten an externe Server gesendet.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 id="modalTitle">Bewerbung bearbeiten</h2>
+          <button class="modal-close" id="closeModal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <form id="applicationForm">
+          <input type="hidden" id="appId">
+
+          <div class="form-group">
+            <label for="appliedAt">Datum</label>
+            <input type="date" id="appliedAt" required>
+          </div>
+
+          <div class="form-group">
+            <label for="company">Firma</label>
+            <input type="text" id="company" maxlength="100" required placeholder="Firmenname">
+          </div>
+
+          <div class="form-group">
+            <label for="position">Stellenbezeichnung</label>
+            <input type="text" id="position" maxlength="100" required placeholder="z.B. Software Engineer">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group form-group-small">
+              <label for="plz">PLZ</label>
+              <input type="text" id="plz" placeholder="8000" maxlength="4">
+            </div>
+            <div class="form-group">
+              <label for="city">Ort</label>
+              <input type="text" id="city" placeholder="Zürich">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="sourceUrl">URL / E-Mail</label>
+            <input type="text" id="sourceUrl" placeholder="Link zum Inserat">
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost btn-danger" id="deleteBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
+            <div class="form-actions-right">
+              <button type="button" class="btn btn-secondary" id="cancelBtn">Abbrechen</button>
+              <button type="submit" class="btn btn-primary">Speichern</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
