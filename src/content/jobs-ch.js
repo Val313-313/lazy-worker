@@ -53,7 +53,7 @@ function handleClick(event) {
 
   if (applyButton && !isCapturing) {
     console.log('[Lazy Worker] Apply button clicked');
-    captureApplication();
+    captureApplication(applyButton);
   }
 }
 
@@ -143,8 +143,9 @@ function observeUrlChanges() {
 
 /**
  * Capture application data from current page
+ * @param {Element} applyButton - The clicked apply button element
  */
-async function captureApplication() {
+async function captureApplication(applyButton) {
   const currentUrl = window.location.href;
 
   // Prevent duplicate captures
@@ -159,9 +160,15 @@ async function captureApplication() {
     // First try JSON-LD structured data
     let jobData = extractFromJsonLd();
 
+    // If JSON-LD returned a platform name instead of the real employer, discard it
+    if (jobData && isPlatformName(jobData.company)) {
+      console.log('[Lazy Worker] JSON-LD returned platform name:', jobData.company);
+      jobData = null;
+    }
+
     if (!jobData) {
       // Fall back to DOM scraping
-      jobData = scrapeFromDom();
+      jobData = scrapeFromDom(applyButton);
     }
 
     if (!jobData || !jobData.company) {
@@ -210,25 +217,37 @@ async function captureApplication() {
 }
 
 /**
- * Find the right-side job detail panel on jobs.ch/jobup.ch split-view.
- * Returns the container element or document as fallback.
+ * Check if a company name is actually the platform name (not a real employer)
+ * @param {string} name
+ * @returns {boolean}
  */
-function findDetailPanel() {
-  // Strategy 1: Find the container that holds the Apply button
-  const applyBtns = document.querySelectorAll('a, button');
-  for (const btn of applyBtns) {
-    const text = (btn.textContent || '').toLowerCase().trim();
-    if (text === 'apply' || text === 'bewerben' || text === 'jetzt bewerben') {
-      // Walk up to find a large container (the detail panel)
-      let parent = btn.parentElement;
-      for (let i = 0; i < 10 && parent; i++) {
-        const rect = parent.getBoundingClientRect();
-        if (rect.width > 400 && rect.height > 300) {
-          console.log('[Lazy Worker] jobs.ch: Found detail panel via Apply button ancestor');
-          return parent;
-        }
-        parent = parent.parentElement;
+function isPlatformName(name) {
+  if (!name) return true;
+  const lower = name.toLowerCase().replace(/\s+/g, '');
+  const platformNames = [
+    'jobcloud', 'job cloud', 'jobs.ch', 'jobsch', 'jobup',
+    'jobup.ch', 'jobupch', 'jobcloud ag', 'jobcloudag'
+  ];
+  return platformNames.some(p => lower === p.replace(/\s+/g, ''));
+}
+
+/**
+ * Find the right-side job detail panel on jobs.ch/jobup.ch split-view.
+ * Uses the clicked apply button to reliably locate the detail panel.
+ * @param {Element|null} applyButton - The button the user clicked
+ * @returns {Element}
+ */
+function findDetailPanel(applyButton) {
+  // Strategy 1: Walk up from the actual clicked apply button
+  if (applyButton) {
+    let parent = applyButton.parentElement;
+    for (let i = 0; i < 15 && parent && parent !== document.body; i++) {
+      const rect = parent.getBoundingClientRect();
+      if (rect.width > 400 && rect.height > 300) {
+        console.log('[Lazy Worker] jobs.ch: Found detail panel via clicked button ancestor');
+        return parent;
       }
+      parent = parent.parentElement;
     }
   }
 
@@ -258,7 +277,6 @@ function findDetailPanel() {
   let bestScore = 0;
   for (const el of containers) {
     const rect = el.getBoundingClientRect();
-    // Right side, large enough to be the detail panel
     if (rect.left > 300 && rect.width > 400 && rect.height > 300) {
       const score = rect.width * rect.height;
       if (score > bestScore) {
@@ -292,9 +310,10 @@ function getTextInContainer(container, selectors) {
 
 /**
  * Scrape job data from DOM
+ * @param {Element|null} applyButton - The clicked apply button
  * @returns {Object|null}
  */
-function scrapeFromDom() {
+function scrapeFromDom(applyButton) {
   const data = {
     company: '',
     position: '',
@@ -309,7 +328,7 @@ function scrapeFromDom() {
   };
 
   // Find the detail panel (right side in split-view)
-  const panel = findDetailPanel();
+  const panel = findDetailPanel(applyButton);
 
   // Company name selectors for jobs.ch
   const companySelectors = [
@@ -329,14 +348,37 @@ function scrapeFromDom() {
 
   data.company = cleanCompanyName(getTextInContainer(panel, companySelectors));
 
+  // Reject platform names from selector results
+  if (isPlatformName(data.company)) {
+    console.log('[Lazy Worker] jobs.ch: Selector returned platform name, discarding:', data.company);
+    data.company = '';
+  }
+
   // Fallback: find links to company pages in the detail panel
   if (!data.company && panel !== document) {
     const companyLinks = panel.querySelectorAll('a[href*="/firma/"], a[href*="/company/"], a[href*="/unternehmen/"]');
     for (const link of companyLinks) {
       const text = link.textContent.trim();
-      if (text && text.length > 1 && text.length < 100) {
+      if (text && text.length > 1 && text.length < 100 && !isPlatformName(text)) {
         data.company = cleanCompanyName(text);
         console.log('[Lazy Worker] jobs.ch: Found company via link:', data.company);
+        break;
+      }
+    }
+  }
+
+  // Fallback: logo alt-text often contains the real company name
+  if (!data.company && panel !== document) {
+    const logos = panel.querySelectorAll('img[alt], img[title]');
+    for (const img of logos) {
+      const alt = (img.alt || img.title || '').trim();
+      if (alt && alt.length > 2 && alt.length < 100 &&
+          !isPlatformName(alt) &&
+          !alt.toLowerCase().includes('logo') &&
+          !alt.toLowerCase().includes('icon') &&
+          !alt.toLowerCase().includes('avatar')) {
+        data.company = cleanCompanyName(alt);
+        console.log('[Lazy Worker] jobs.ch: Found company via logo alt-text:', data.company);
         break;
       }
     }
@@ -348,6 +390,7 @@ function scrapeFromDom() {
     for (const el of topTexts) {
       const text = el.textContent.trim();
       if (text && text.length > 2 && text.length < 100 &&
+          !isPlatformName(text) &&
           !text.toLowerCase().includes('apply') &&
           !text.toLowerCase().includes('bewerben') &&
           !text.toLowerCase().includes('save')) {
