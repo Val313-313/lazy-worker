@@ -725,8 +725,30 @@
       const city = (app.location?.city || '').trim();
       const resolvedPlz = capturedPlz || CITY_PLZ[city.toLowerCase()] || '';
       const plzValue = resolvedPlz || city;
-      if (plzValue && setValue(plzOrtInput, plzValue)) filled++;
-      console.log('[Lazy Worker] PLZ/Ort filled with:', plzValue, '(captured:', capturedPlz, 'city:', city, ')');
+      if (plzValue) {
+        // This is an Angular autocomplete field — type value, wait for dropdown, click first option
+        setValue(plzOrtInput, plzValue);
+        console.log('[Lazy Worker] PLZ/Ort typed:', plzValue, '— waiting for autocomplete dropdown...');
+        // Wait for Angular to show autocomplete options
+        await new Promise(r => setTimeout(r, 800));
+        const option = document.querySelector('mat-option, .mat-option, .mat-autocomplete-panel mat-option, [role="option"]');
+        if (option) {
+          option.click();
+          filled++;
+          console.log('[Lazy Worker] Clicked autocomplete option:', option.textContent?.trim());
+        } else {
+          console.log('[Lazy Worker] No autocomplete option appeared, trying longer wait...');
+          await new Promise(r => setTimeout(r, 800));
+          const retryOption = document.querySelector('mat-option, .mat-option, [role="option"]');
+          if (retryOption) {
+            retryOption.click();
+            filled++;
+            console.log('[Lazy Worker] Clicked autocomplete option (retry):', retryOption.textContent?.trim());
+          } else {
+            console.log('[Lazy Worker] Autocomplete dropdown not found — PLZ needs manual selection');
+          }
+        }
+      }
     } else {
       console.log('[Lazy Worker] PLZ/City field not found. Available fields:', Object.keys(fieldMap));
     }
