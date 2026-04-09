@@ -525,21 +525,7 @@ function scrapeJobPage() {
 
     // 2. COMPANY — search within the detail panel
 
-    // Strategy A: First img with meaningful alt text (company logo)
-    if (!data.company) {
-      const imgs = searchScope.querySelectorAll('img[alt]');
-      for (const img of imgs) {
-        const alt = img.alt.trim();
-        if (alt.length > 2 && alt.length < 100 && !isInvalidCompany(alt) &&
-            !alt.toLowerCase().includes('icon') && !alt.toLowerCase().includes('avatar')) {
-          data.company = alt;
-          console.log('[Lazy Worker] Found company via img alt:', alt);
-          break;
-        }
-      }
-    }
-
-    // Strategy B: Links to company pages
+    // Strategy A: Links to company pages (most reliable on jobs.ch)
     if (!data.company) {
       const companyLinks = searchScope.querySelectorAll('a[href*="/firma/"], a[href*="/company/"], a[href*="/arbeitgeber/"]');
       for (const link of companyLinks) {
@@ -552,16 +538,12 @@ function scrapeJobPage() {
       }
     }
 
-    // Strategy C: Prominent text near the top of the panel (company name + location area)
-    // On jobs.ch, the header shows: [logo] CompanyName \n Location
+    // Strategy B: Prominent link near the top of the panel (company name is clickable)
     if (!data.company) {
-      // Look at direct children elements at the start of the panel for short text
       const candidates = searchScope.querySelectorAll('a, span, div, p, h2, h3, strong');
       for (const el of candidates) {
-        // Only look at elements near the top of the panel
         const panelRect = searchScope.getBoundingClientRect?.() || { top: 0 };
         const elRect = el.getBoundingClientRect();
-        // Must be within first 200px of the panel
         if (elRect.top - panelRect.top > 200) continue;
         if (elRect.width === 0 || elRect.height === 0) continue;
 
@@ -570,22 +552,42 @@ function scrapeJobPage() {
         if (isInvalidCompany(text)) continue;
 
         const lower = text.toLowerCase();
-        // Skip dates, job meta, location
         if (lower.match(/^\d/) || lower.includes('day') || lower.includes('ago') ||
             lower.includes('vor ') || lower.includes('temporary') || lower.includes('permanent') ||
             lower.includes('vollzeit') || lower.includes('teilzeit') || lower.includes('full-time') ||
             lower.includes('part-time') || lower.includes('hybrid') || lower.includes('remote') ||
             lower.includes('fluent') || lower.includes('intermediate') ||
-            lower.includes('log in') || lower.includes('salary') || lower.includes('lohn')) continue;
+            lower.includes('log in') || lower.includes('salary') || lower.includes('lohn') ||
+            lower.includes('attraktiv') || lower.includes('arbeitgeber') ||
+            lower.includes('award') || lower.includes('auszeichnung') ||
+            lower.includes('zertif') || lower.includes('great place')) continue;
 
         // Prefer links (company name is usually clickable on jobs.ch)
         if (el.tagName === 'A' || el.closest('a')) {
-          // Make sure it's not the job title (which is in h1)
           if (!el.closest('h1')) {
             data.company = text;
             console.log('[Lazy Worker] Found company in panel header:', text);
             break;
           }
+        }
+      }
+    }
+
+    // Strategy C: img alt text (company logo), but skip badges/awards
+    if (!data.company) {
+      const imgs = searchScope.querySelectorAll('img[alt]');
+      for (const img of imgs) {
+        const alt = img.alt.trim();
+        const altLower = alt.toLowerCase();
+        if (alt.length > 2 && alt.length < 100 && !isInvalidCompany(alt) &&
+            !altLower.includes('icon') && !altLower.includes('avatar') &&
+            !altLower.includes('badge') && !altLower.includes('award') &&
+            !altLower.includes('attraktiv') && !altLower.includes('arbeitgeber') &&
+            !altLower.includes('auszeichnung') && !altLower.includes('zertif') &&
+            !altLower.includes('great place') && !altLower.includes('top employer')) {
+          data.company = alt;
+          console.log('[Lazy Worker] Found company via img alt:', alt);
+          break;
         }
       }
     }
