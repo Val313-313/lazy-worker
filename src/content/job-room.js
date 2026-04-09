@@ -344,7 +344,7 @@
         <div class="lw-app-item" data-id="${app.id}">
           <div class="lw-app-company">${app.company || 'Unbekannt'}</div>
           <div class="lw-app-position">${app.position || '-'}</div>
-          <div class="lw-app-meta">${formatDate(app.appliedAt)} • ${app.location?.plz || ''} ${app.location?.city || ''}</div>
+          <div class="lw-app-meta">${formatDate(app.appliedAt)} • ${app.location?.postalCode || app.location?.plz || ''} ${app.location?.city || ''}</div>
         </div>
       `).join('');
 
@@ -566,87 +566,57 @@
     async function clickMatCheckbox(matCheckbox) {
       console.log('[Lazy Worker] Attempting to click mat-checkbox...');
 
-      // Find the actual input element inside
       const input = matCheckbox.querySelector('input[type="checkbox"]');
+      const isChecked = () => input && input.checked;
 
-      // Strategy 1: Simulate a real user click on the checkbox label
+      // Strategy 1: Click the mat-checkbox element itself (Angular handles the event)
+      matCheckbox.click();
+      console.log('[Lazy Worker] Strategy 1: clicked mat-checkbox element');
+      await new Promise(r => setTimeout(r, 100));
+      if (isChecked()) { console.log('[Lazy Worker] Checkbox checked via strategy 1'); return; }
+
+      // Strategy 2: Simulate full mouse event sequence on the label
       const label = matCheckbox.querySelector('label');
       if (label) {
-        // Create and dispatch mouse events
-        const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window });
-        const mouseUp = new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window });
-        const click = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
-
-        label.dispatchEvent(mouseDown);
-        label.dispatchEvent(mouseUp);
-        label.dispatchEvent(click);
-        console.log('[Lazy Worker] Dispatched mouse events on label');
+        label.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+        label.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+        label.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        console.log('[Lazy Worker] Strategy 2: full mouse sequence on label');
       }
+      await new Promise(r => setTimeout(r, 100));
+      if (isChecked()) { console.log('[Lazy Worker] Checkbox checked via strategy 2'); return; }
 
-      await new Promise(r => setTimeout(r, 50));
-
-      // Strategy 2: If still not checked, try clicking touch target (MDC style)
-      if (input && !input.checked) {
-        const touchTarget = matCheckbox.querySelector('.mat-mdc-checkbox-touch-target, .mdc-checkbox__native-control');
-        if (touchTarget) {
-          touchTarget.click();
-          console.log('[Lazy Worker] Clicked touch target');
-        }
-      }
-
-      await new Promise(r => setTimeout(r, 50));
-
-      // Strategy 3: Try clicking the ripple/visual container
-      if (input && !input.checked) {
-        const ripple = matCheckbox.querySelector('.mat-mdc-checkbox-ripple, .mat-checkbox-inner-container, .mdc-checkbox');
-        if (ripple) {
-          ripple.click();
-          console.log('[Lazy Worker] Clicked ripple container');
-        }
-      }
-
-      await new Promise(r => setTimeout(r, 50));
-
-      // Strategy 4: Direct input manipulation with Angular change detection trigger
-      if (input && !input.checked) {
+      // Strategy 3: Click the inner input directly
+      if (input) {
         input.focus();
         input.click();
-        input.checked = true;
+        console.log('[Lazy Worker] Strategy 3: clicked input directly');
+      }
+      await new Promise(r => setTimeout(r, 100));
+      if (isChecked()) { console.log('[Lazy Worker] Checkbox checked via strategy 3'); return; }
 
-        // Trigger all possible events Angular might listen to
-        ['change', 'input', 'click'].forEach(eventType => {
-          input.dispatchEvent(new Event(eventType, { bubbles: true }));
-        });
-
-        // Also trigger on the mat-checkbox element itself
-        matCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
-
-        console.log('[Lazy Worker] Set input directly with events');
+      // Strategy 4: Click touch target or mdc-checkbox container
+      const clickTargets = matCheckbox.querySelectorAll(
+        '.mat-mdc-checkbox-touch-target, .mdc-checkbox, .mdc-checkbox__native-control, .mat-checkbox-inner-container'
+      );
+      for (const target of clickTargets) {
+        target.click();
+        console.log('[Lazy Worker] Strategy 4: clicked', target.className);
+        await new Promise(r => setTimeout(r, 50));
+        if (isChecked()) { console.log('[Lazy Worker] Checkbox checked via strategy 4'); return; }
       }
 
-      await new Promise(r => setTimeout(r, 50));
-
-      // Strategy 5: Force the checked state via class manipulation
-      if (input && !input.checked) {
+      // Strategy 5: Force state as last resort
+      if (input && !isChecked()) {
         input.checked = true;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.dispatchEvent(new Event('input', { bubbles: true }));
         matCheckbox.classList.add('mat-mdc-checkbox-checked', 'mat-checkbox-checked');
-        matCheckbox.setAttribute('aria-checked', 'true');
-
-        // Try to find and update Angular's internal state
-        const ngControl = matCheckbox.querySelector('[formcontrolname], [ng-reflect-model]');
-        if (ngControl) {
-          ngControl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        console.log('[Lazy Worker] Forced checked state via classes');
+        matCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+        console.log('[Lazy Worker] Strategy 5: forced checked state');
       }
 
-      // Final verification
-      setTimeout(() => {
-        if (input) {
-          console.log('[Lazy Worker] Checkbox final state:', input.checked);
-        }
-      }, 200);
+      console.log('[Lazy Worker] Checkbox final state:', isChecked());
     }
 
     // Find mat-checkbox with "elektronisch" or "electronic" text
@@ -712,7 +682,7 @@
       plzOrtInput = findInputByPlaceholder('postal') || findInputByPlaceholder('plz') || findInputByPlaceholder('city');
     }
     if (plzOrtInput) {
-      const plzOrt = [app.location?.plz, app.location?.city].filter(Boolean).join(' ');
+      const plzOrt = [app.location?.postalCode || app.location?.plz, app.location?.city].filter(Boolean).join(' ');
       if (plzOrt && setValue(plzOrtInput, plzOrt)) filled++;
     } else {
       console.log('[Lazy Worker] PLZ/City field not found. Available fields:', Object.keys(fieldMap));
