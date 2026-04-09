@@ -243,7 +243,12 @@ function scrapeJobPage() {
       const items = Array.isArray(json) ? json : [json];
       for (const item of items) {
         if (item['@type'] === 'JobPosting') {
-          data.company = item.hiringOrganization?.name || '';
+          const rawCompany = (item.hiringOrganization?.name || '').toLowerCase();
+          // Skip platform names from JSON-LD
+          if (rawCompany && !rawCompany.includes('jobcloud') && !rawCompany.includes('job cloud') &&
+              !rawCompany.includes('jobs.ch') && !rawCompany.includes('jobup')) {
+            data.company = item.hiringOrganization?.name || '';
+          }
           data.position = item.title || '';
           if (item.jobLocation?.address) {
             data.plz = item.jobLocation.address.postalCode || '';
@@ -498,7 +503,7 @@ function scrapeJobPage() {
       'arbeit', 'karriere', 'career', 'careers', 'apply', 'bewerben',
       'search', 'suche', 'filter', 'sort', 'alle', 'mehr', 'view',
       'details', 'description', 'beschreibung', 'info', 'information',
-      'jobcloud', '2025', '2024', '2023', 'copyright', 'impressum', 'datenschutz'
+      'jobcloud', '2026', '2025', '2024', '2023', 'copyright', 'impressum', 'datenschutz'
     ];
 
     // Helper function to check if element is in the MAIN/LARGER section (right panel)
@@ -524,6 +529,11 @@ function scrapeJobPage() {
       if (!text || text.length < 2 || text.length > 120) return false;
 
       const lower = text.toLowerCase().trim();
+
+      // Reject copyright notices and platform names (partial match)
+      if (lower.includes('©') || lower.includes('copyright') ||
+          lower.includes('jobcloud') || lower.includes('job cloud') ||
+          lower.includes('jobs.ch') || lower.includes('jobup')) return false;
 
       // Check blacklist
       for (const bad of blacklistedCompanyNames) {
