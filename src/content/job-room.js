@@ -646,20 +646,35 @@
 
     // Fallback: search for any checkbox element on the page with elektronisch
     if (!elektronischFound) {
-      const allCheckboxContainers = document.querySelectorAll('mat-checkbox, .mat-checkbox, [type="checkbox"]');
-      for (const container of allCheckboxContainers) {
-        const parent = container.closest('div, label, span, li') || container.parentElement;
-        if (parent && (parent.textContent?.toLowerCase().includes('elektron') || parent.textContent?.toLowerCase().includes('electronic'))) {
-          const input = container.querySelector ? container.querySelector('input[type="checkbox"]') : container;
-          if (input) {
-            input.click();
-            input.checked = true;
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            filled++;
-            elektronischFound = true;
-            console.log('[Lazy Worker] Found checkbox via fallback');
-            break;
-          }
+      const allCheckboxInputs = document.querySelectorAll('input[type="checkbox"]');
+      console.log('[Lazy Worker] Fallback: found', allCheckboxInputs.length, 'checkbox inputs');
+      for (const cb of allCheckboxInputs) {
+        const parent = cb.closest('div, label, span, li, section') || cb.parentElement;
+        const parentText = parent?.textContent?.toLowerCase() || '';
+        console.log('[Lazy Worker] Checkbox parent text:', parentText.substring(0, 60));
+        if (parentText.includes('elektron') || parentText.includes('electronic')) {
+          cb.click();
+          filled++;
+          elektronischFound = true;
+          console.log('[Lazy Worker] Clicked elektronisch checkbox via fallback');
+          break;
+        }
+      }
+    }
+
+    // Last resort: find ANY element with "Elektronisch" text and click it
+    if (!elektronischFound) {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        if (walker.currentNode.textContent.trim().toLowerCase() === 'elektronisch') {
+          const el = walker.currentNode.parentElement;
+          console.log('[Lazy Worker] Found "Elektronisch" text in:', el?.tagName, el?.className);
+          // Click the element or its parent (might be a label that toggles a checkbox)
+          el?.click();
+          filled++;
+          elektronischFound = true;
+          console.log('[Lazy Worker] Clicked Elektronisch text element');
+          break;
         }
       }
     }
@@ -678,6 +693,20 @@
     }
 
     // 4. PLZ / ORT - "Postal code / City"
+    // City-to-PLZ mapping for common Swiss cities
+    const CITY_PLZ = {
+      'zürich': '8001', 'basel': '4001', 'bern': '3001', 'genf': '1201', 'geneva': '1201',
+      'lausanne': '1003', 'winterthur': '8400', 'luzern': '6003', 'lucerne': '6003',
+      'st. gallen': '9000', 'lugano': '6900', 'biel': '2502', 'thun': '3600',
+      'köniz': '3098', 'chur': '7000', 'schaffhausen': '8200', 'fribourg': '1700',
+      'neuchâtel': '2000', 'uster': '8610', 'sion': '1950', 'zug': '6300',
+      'dietikon': '8953', 'baar': '6340', 'wil': '9500', 'dübendorf': '8600',
+      'horgen': '8810', 'wädenswil': '8820', 'adliswil': '8134', 'opfikon': '8152',
+      'kloten': '8302', 'wetzikon': '8620', 'baden': '5400', 'aarau': '5000',
+      'rapperswil': '8640', 'meilen': '8706', 'küsnacht': '8700', 'zollikon': '8702',
+      'kilchberg': '8802', 'thalwil': '8800', 'rüschlikon': '8803', 'fully': '1926'
+    };
+
     // Search through all mapped fields for one containing postal/city/plz/ort
     let plzOrtInput = null;
     for (const [label, input] of Object.entries(fieldMap)) {
@@ -688,11 +717,16 @@
       }
     }
     if (!plzOrtInput) {
-      plzOrtInput = findInputByPlaceholder('postal') || findInputByPlaceholder('plz') || findInputByPlaceholder('city');
+      plzOrtInput = findInputByPlaceholder('postal') || findInputByPlaceholder('plz') || findInputByPlaceholder('city') || findInputByPlaceholder('ort');
     }
     if (plzOrtInput) {
-      const plzOrt = [app.location?.postalCode || app.location?.plz, app.location?.city].filter(Boolean).join(' ');
-      if (plzOrt && setValue(plzOrtInput, plzOrt)) filled++;
+      // Resolve PLZ: use captured PLZ, or look up from city name
+      const capturedPlz = app.location?.postalCode || app.location?.plz || '';
+      const city = (app.location?.city || '').trim();
+      const resolvedPlz = capturedPlz || CITY_PLZ[city.toLowerCase()] || '';
+      const plzValue = resolvedPlz || city;
+      if (plzValue && setValue(plzOrtInput, plzValue)) filled++;
+      console.log('[Lazy Worker] PLZ/Ort filled with:', plzValue, '(captured:', capturedPlz, 'city:', city, ')');
     } else {
       console.log('[Lazy Worker] PLZ/City field not found. Available fields:', Object.keys(fieldMap));
     }
