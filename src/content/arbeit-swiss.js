@@ -442,13 +442,15 @@ async function fillLocationFields(location) {
     }
   }
 
-  // City
-  if (location.city) {
+  // City/Ort field — fill PLZ if available, otherwise city
+  const plzOrCity = postalCode || location.city || '';
+  if (plzOrCity) {
     const cityInput = document.querySelector(
       'input[name*="ort" i], input[name*="city" i], input[name*="stadt" i], input[placeholder*="Ort" i]'
     );
     if (cityInput) {
-      setInputValue(cityInput, location.city);
+      setInputValue(cityInput, plzOrCity);
+      console.log('[Lazy Worker] Filled Ort field with:', plzOrCity);
     }
   }
 

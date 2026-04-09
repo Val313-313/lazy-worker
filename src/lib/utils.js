@@ -248,9 +248,9 @@ export function setInputValue(element, value) {
  * @param {boolean} checked
  */
 export function setCheckboxValue(checkbox, checked) {
-  checkbox.checked = checked;
-  checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-  checkbox.dispatchEvent(new Event('click', { bubbles: true }));
+  if (checkbox.checked !== checked) {
+    checkbox.click();
+  }
 }
 
 /**
