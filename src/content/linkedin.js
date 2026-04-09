@@ -222,6 +222,52 @@ function extractJobId(url) {
 }
 
 /**
+ * Find the right-side job detail panel container.
+ * LinkedIn uses different class names but always has a detail container
+ * separate from the job list sidebar.
+ */
+function findDetailPanel() {
+  // Known LinkedIn detail panel selectors (ordered by specificity)
+  const panelSelectors = [
+    '.scaffold-layout__detail',
+    '.jobs-search__job-details',
+    '.jobs-details',
+    '.job-details-module',
+    '#job-details',
+    '.job-view-layout',
+    '.jobs-unified-top-card',
+    '.job-details-jobs-unified-top-card__container',
+  ];
+
+  for (const sel of panelSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      console.log('[Lazy Worker] LinkedIn: Found detail panel via:', sel);
+      return el;
+    }
+  }
+
+  // Geometric fallback: find the widest container on the right half
+  const containers = document.querySelectorAll('div, section, main');
+  let best = null;
+  let bestScore = 0;
+  for (const el of containers) {
+    const rect = el.getBoundingClientRect();
+    if (rect.left > 300 && rect.width > 400 && rect.height > 300) {
+      const score = rect.width * rect.height;
+      if (score > bestScore) {
+        bestScore = score;
+        best = el;
+      }
+    }
+  }
+  if (best) {
+    console.log('[Lazy Worker] LinkedIn: Found detail panel via geometry');
+  }
+  return best;
+}
+
+/**
  * Scrape job data from LinkedIn DOM
  * @returns {Object|null}
  */
@@ -239,19 +285,9 @@ function scrapeFromDom() {
     workload: 'vollzeit'
   };
 
-  // Detect split-view (job list on left, detail on right)
-  const isSplitView = window.location.pathname.includes('/jobs/search/') ||
-                      window.location.pathname.includes('/jobs/collections/');
-  console.log('[Lazy Worker] LinkedIn scrapeFromDom, split-view:', isSplitView);
-
-  // Helper: check if element is in the right detail panel (not the left sidebar)
-  // LinkedIn's left sidebar is ~350-400px wide in split-view
-  function isInDetailPanel(el) {
-    const rect = el.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return false;
-    if (!isSplitView) return true; // On /jobs/view/, all elements are valid
-    return rect.left >= 350 && rect.width > 80;
-  }
+  // Find the detail panel (right side in split-view, or main content in single view)
+  const detailPanel = findDetailPanel() || document;
+  console.log('[Lazy Worker] LinkedIn scrapeFromDom, searching in:', detailPanel === document ? 'full page' : 'detail panel');
 
   // Helper: validate LinkedIn company text
   function isValidCompanyText(text) {
@@ -262,59 +298,58 @@ function scrapeFromDom() {
            !lower.includes('mitarbeiter') &&
            !lower.includes('employee') &&
            !lower.includes('sign in') &&
-           !lower.includes('join now');
+           !lower.includes('join now') &&
+           !lower.includes('top-jobs') &&
+           !lower.includes('treffer');
   }
 
   // ---- COMPANY ----
-  // Strategy A: LinkedIn-specific selectors + position filter
-  const companySelectors = [
-    '.job-details-jobs-unified-top-card__company-name a',
-    '.job-details-jobs-unified-top-card__company-name',
-    '.jobs-unified-top-card__company-name a',
-    '.jobs-unified-top-card__company-name',
-    '.topcard__org-name-link',
-    '.jobs-details-top-card__company-url',
-    'a[data-tracking-control-name="public_jobs_topcard-org-name"]',
-    '.job-details-jobs-unified-top-card__primary-description-container a',
-    '[class*="topcard"] a[href*="/company/"]'
-  ];
-
-  for (const sel of companySelectors) {
-    const els = document.querySelectorAll(sel);
-    for (const el of els) {
-      if (!isInDetailPanel(el)) continue;
-      const text = el.textContent.trim();
-      if (isValidCompanyText(text)) {
-        data.company = cleanCompanyName(text);
-        console.log('[Lazy Worker] LinkedIn: Found company via selector:', data.company);
-        break;
-      }
+  // Strategy A: /company/ links inside the detail panel (most reliable)
+  const companyLinks = detailPanel.querySelectorAll('a[href*="/company/"]');
+  for (const link of companyLinks) {
+    const text = link.textContent.trim();
+    if (isValidCompanyText(text)) {
+      data.company = cleanCompanyName(text);
+      console.log('[Lazy Worker] LinkedIn: Found company via /company/ link:', data.company);
+      break;
     }
-    if (data.company) break;
   }
 
-  // Strategy B: /company/ links in detail panel
+  // Strategy B: LinkedIn-specific class selectors within detail panel
   if (!data.company) {
-    const companyLinks = document.querySelectorAll('a[href*="/company/"]');
-    for (const link of companyLinks) {
-      if (!isInDetailPanel(link)) continue;
-      const text = link.textContent.trim();
-      if (isValidCompanyText(text)) {
-        data.company = cleanCompanyName(text);
-        console.log('[Lazy Worker] LinkedIn: Found company via /company/ link:', data.company);
-        break;
+    const companySelectors = [
+      '.job-details-jobs-unified-top-card__company-name a',
+      '.job-details-jobs-unified-top-card__company-name',
+      '.jobs-unified-top-card__company-name a',
+      '.jobs-unified-top-card__company-name',
+      '.topcard__org-name-link',
+      '.jobs-details-top-card__company-url',
+      'a[data-tracking-control-name="public_jobs_topcard-org-name"]',
+      '.job-details-jobs-unified-top-card__primary-description-container a',
+      '[class*="topcard"] a[href*="/company/"]'
+    ];
+
+    for (const sel of companySelectors) {
+      const el = detailPanel.querySelector(sel);
+      if (el) {
+        const text = el.textContent.trim();
+        if (isValidCompanyText(text)) {
+          data.company = cleanCompanyName(text);
+          console.log('[Lazy Worker] LinkedIn: Found company via class selector:', data.company);
+          break;
+        }
       }
     }
   }
 
   // Strategy C: Text pattern matching (AG/GmbH etc.) in detail panel
   if (!data.company) {
-    const candidates = document.querySelectorAll('a, span, div');
+    const candidates = detailPanel.querySelectorAll('a, span, div');
     for (const el of candidates) {
-      if (!isInDetailPanel(el)) continue;
       const text = el.textContent.trim();
       if (text.length > 3 && text.length < 80 &&
-          text.match(/\s+(AG|GmbH|SA|Sàrl|Ltd|Inc|Corp)\.?\s*$/i)) {
+          text.match(/\s+(AG|GmbH|SA|Sàrl|Ltd|Inc|Corp)\.?\s*$/i) &&
+          isValidCompanyText(text)) {
         data.company = cleanCompanyName(text);
         console.log('[Lazy Worker] LinkedIn: Found company via pattern:', data.company);
         break;
@@ -322,33 +357,28 @@ function scrapeFromDom() {
     }
   }
 
-  // Strategy D: Fallback — selectors without position filter
-  if (!data.company) {
-    data.company = cleanCompanyName(getTextFromSelectors(companySelectors));
-  }
-
   // ---- POSITION ----
-  // Strategy A: h1 in detail panel
+  // Strategy A: h1/h2 inside detail panel (job title is always the main heading)
   const titleSelectors = [
-    'h1.jobs-unified-top-card__job-title',
     'h1.job-details-jobs-unified-top-card__job-title',
+    'h1.jobs-unified-top-card__job-title',
     'h1[class*="job-title"]',
-    '.job-details-jobs-unified-top-card__job-title h1',
     '.job-details-jobs-unified-top-card__job-title',
     '.jobs-unified-top-card__job-title',
     '.topcard__title',
-    'h1'
+    'h1',
+    'h2'
   ];
 
   for (const sel of titleSelectors) {
-    const els = document.querySelectorAll(sel);
+    const els = detailPanel.querySelectorAll(sel);
     for (const el of els) {
-      if (!isInDetailPanel(el)) continue;
       const text = el.textContent.trim();
       if (text.length > 3 && text.length < 150 &&
           !text.toLowerCase().includes('linkedin') &&
           !text.toLowerCase().includes('jobs für sie') &&
           !text.toLowerCase().includes('top-jobs') &&
+          !text.toLowerCase().includes('details zum jobangebot') &&
           !text.match(/^\(\d+\)/) &&
           !text.match(/^\d+\s*treffer/i)) {
         data.position = cleanJobTitle(text);
@@ -359,11 +389,6 @@ function scrapeFromDom() {
     if (data.position) break;
   }
 
-  // Strategy B: Fallback — selectors without position filter
-  if (!data.position) {
-    data.position = cleanJobTitle(getTextFromSelectors(titleSelectors));
-  }
-
   // ---- LOCATION ----
   const swissCities = ['Zürich', 'Basel', 'Bern', 'Genf', 'Geneva', 'Lausanne', 'Winterthur',
                        'Zug', 'Luzern', 'Lucerne', 'St. Gallen', 'Lugano', 'Biel', 'Thun',
@@ -371,20 +396,18 @@ function scrapeFromDom() {
                        'Sion', 'Emmen', 'Kriens', 'Rapperswil', 'Dietikon', 'Baar', 'Wil',
                        'Dübendorf', 'Horgen', 'Wädenswil', 'Adliswil', 'Opfikon', 'Kloten',
                        'Wetzikon', 'Baden', 'Aarau', 'Hünenberg', 'Meilen', 'Küsnacht',
-                       'Zollikon', 'Kilchberg', 'Thalwil', 'Rüschlikon'];
+                       'Zollikon', 'Kilchberg', 'Thalwil', 'Rüschlikon', 'Fully'];
 
-  // Strategy A: Spans/divs in detail panel matching Swiss cities
-  const locationCandidates = document.querySelectorAll('span, div, li');
+  // Strategy A: Short text elements in detail panel matching location patterns
+  const locationCandidates = detailPanel.querySelectorAll('span, div, li');
   for (const el of locationCandidates) {
-    if (!isInDetailPanel(el)) continue;
     const text = el.textContent.trim();
-    if (text.length < 80) {
-      // Match Swiss cities or location patterns
-      if (text.match(/switzerland|schweiz|suisse/i) || text.match(/\d{4}/)) {
+    if (text.length > 3 && text.length < 80) {
+      if (text.match(/schweiz|switzerland|suisse/i) || text.match(/\d{4}/)) {
         const parsedLocation = parseSwissLocation(text);
         if (parsedLocation.city) {
           data.location = { ...data.location, ...parsedLocation };
-          console.log('[Lazy Worker] LinkedIn: Found location in detail panel:', parsedLocation);
+          console.log('[Lazy Worker] LinkedIn: Found location:', parsedLocation);
           break;
         }
       }
@@ -393,7 +416,7 @@ function scrapeFromDom() {
           data.location.city = city;
           const plzMatch = text.match(/(\d{4})/);
           if (plzMatch) data.location.postalCode = plzMatch[1];
-          console.log('[Lazy Worker] LinkedIn: Found city in detail panel:', city);
+          console.log('[Lazy Worker] LinkedIn: Found city:', city);
           break;
         }
       }
@@ -401,7 +424,7 @@ function scrapeFromDom() {
     }
   }
 
-  // Strategy B: LinkedIn-specific location selectors + position filter
+  // Strategy B: LinkedIn-specific location selectors
   if (!data.location.city) {
     const locationSelectors = [
       '.job-details-jobs-unified-top-card__primary-description-container .tvm__text',
@@ -415,13 +438,12 @@ function scrapeFromDom() {
     ];
 
     for (const sel of locationSelectors) {
-      const els = document.querySelectorAll(sel);
+      const els = detailPanel.querySelectorAll(sel);
       for (const el of els) {
-        if (!isInDetailPanel(el)) continue;
         const text = el.textContent.trim();
-        if (text.match(/zürich|genf|basel|bern|lausanne|luzern|winterthur/i) ||
+        if (text.match(/zürich|genf|basel|bern|lausanne|luzern|winterthur|fully/i) ||
             text.match(/\d{4}/) ||
-            text.match(/switzerland|schweiz|suisse/i)) {
+            text.match(/schweiz|switzerland|suisse/i)) {
           const parsedLocation = parseSwissLocation(text);
           data.location = { ...data.location, ...parsedLocation };
           console.log('[Lazy Worker] LinkedIn: Found location via selector:', parsedLocation);
@@ -432,25 +454,12 @@ function scrapeFromDom() {
     }
   }
 
-  // Strategy C: Full-text search for "City, Schweiz" pattern
-  if (!data.location.city) {
-    const allText = document.body.innerText || '';
-    for (const city of swissCities) {
-      const pattern = new RegExp(city + '[,\\s]+(Schweiz|Switzerland|CH)', 'i');
-      if (pattern.test(allText)) {
-        data.location.city = city;
-        console.log('[Lazy Worker] LinkedIn: Found city via text search:', city);
-        break;
-      }
-    }
-  }
-
   // ---- WORKLOAD ----
-  const jobDetailsText = document.body.innerText || '';
-  if (jobDetailsText.match(/part[\s-]?time|teilzeit/i)) {
+  const detailText = detailPanel.textContent || '';
+  if (detailText.match(/part[\s-]?time|teilzeit/i)) {
     data.workload = 'teilzeit';
   }
-  const percentMatch = jobDetailsText.match(/(\d{2,3})\s*%/);
+  const percentMatch = detailText.match(/(\d{2,3})\s*%/);
   if (percentMatch) {
     const percent = parseInt(percentMatch[1]);
     if (percent < 100 && percent >= 10) {
