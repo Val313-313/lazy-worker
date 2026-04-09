@@ -335,6 +335,25 @@ function checkMethodCheckbox(keywords) {
     }
   }
 
+  // Strategy 4: Walk ALL checkboxes and match by any surrounding text
+  // (handles custom form frameworks where label/value don't contain the keyword)
+  for (const keyword of keywords) {
+    const lowerKeyword = keyword.toLowerCase();
+    const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+    for (const cb of allCheckboxes) {
+      // Walk up to find containing row/cell and check its full text
+      const row = cb.closest('tr, li, div, section, fieldset');
+      if (row) {
+        const rowText = row.textContent.trim().toLowerCase();
+        if (rowText.includes(lowerKeyword) && rowText.length < 200) {
+          setCheckboxValue(cb, true);
+          console.log('[Lazy Worker] Found checkbox via row text for:', keyword);
+          return true;
+        }
+      }
+    }
+  }
+
   return false;
 }
 
@@ -412,7 +431,7 @@ async function fillLocationFields(location) {
   }
 
   // Postal code (PLZ) - use random Zürich PLZ as fallback if not captured
-  const postalCode = location.postalCode || FALLBACK_PLZ[Math.floor(Math.random() * FALLBACK_PLZ.length)];
+  const postalCode = location.plz || location.postalCode || FALLBACK_PLZ[Math.floor(Math.random() * FALLBACK_PLZ.length)];
   const plzInput = document.querySelector(
     'input[name*="plz" i], input[name*="postal" i], input[name*="zip" i], input[placeholder*="PLZ" i]'
   );
