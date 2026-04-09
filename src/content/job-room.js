@@ -4,18 +4,27 @@
  */
 
 (function() {
-  // Only run on the create form page
-  if (!window.location.href.includes('work-efforts')) {
-    return;
-  }
+  console.log('[Lazy Worker] job-room.ch content script loaded');
 
-  console.log('[Lazy Worker] job-room.ch form filler loaded');
-
-  // Wait for Angular to load
+  // Always show button on job-room.ch so users aren't confused.
+  // Wait for Angular to load, then create button.
   setTimeout(init, 2000);
 
   function init() {
     createFloatingButton();
+
+    // Observe SPA navigation — Angular changes URL without page reload
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        console.log('[Lazy Worker] SPA navigation detected:', lastUrl);
+        // Re-create button if it was removed during navigation
+        if (!document.getElementById('lw-float-btn')) {
+          createFloatingButton();
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true });
   }
 
   function createFloatingButton() {

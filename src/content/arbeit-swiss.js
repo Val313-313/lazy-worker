@@ -32,32 +32,23 @@ const RESULT_MAP = {
  * Initialize the content script
  */
 function init() {
-  // Only activate on the form page
-  if (!isOnFormPage()) {
-    return;
-  }
-
   console.log('[Lazy Worker] Activated on arbeit.swiss');
 
-  // Create floating button
+  // Create floating button (always show on arbeit.swiss so users aren't confused)
   createFloatingUI();
 
   // Listen for messages from popup/background
   chrome.runtime.onMessage.addListener(handleMessage);
-}
 
-/**
- * Check if we're on the correct form page
- */
-function isOnFormPage() {
-  // Check URL patterns for the RAV form
-  const url = window.location.href.toLowerCase();
-  return url.includes('arbeit.swiss') && (
-    url.includes('arbeitsbemuehungen') ||
-    url.includes('arbeitsbemühungen') ||
-    url.includes('nachweis') ||
-    url.includes('eservices')
-  );
+  // Observe SPA navigation — re-init if URL changes
+  let lastUrl = location.href;
+  new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      console.log('[Lazy Worker] SPA navigation detected:', lastUrl);
+      createFloatingUI();
+    }
+  }).observe(document.body, { childList: true, subtree: true });
 }
 
 /**
