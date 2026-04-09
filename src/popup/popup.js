@@ -363,19 +363,45 @@ function scrapeJobPage() {
              !lower.includes('profil') &&
              !lower.includes('netzwerk') &&
              !lower.includes('network') &&
+             !lower.includes('personen') &&
+             !lower.includes('kontaktieren') &&
+             !lower.includes('erfahren sie') &&
+             !lower.includes('premium') &&
+             !lower.includes('kandidat') &&
+             !lower.includes('mitglied') &&
+             !lower.includes('vergleich') &&
+             !lower.includes('abschneiden') &&
+             !lower.includes('exklusive') &&
+             !lower.includes('einblicke') &&
              !lower.match(/^(vor \d|posted|\d+ (day|week|monat|tag))/) &&
              !text.match(/^\(\d+\)/) &&
              !text.match(/^\d+\s*(treffer|job|stell)/i);
     }
 
+    // Strategy A0: Parse document.title (most reliable on LinkedIn job pages)
+    // Format: "(3) Senior Product Marketing Manager - Company | LinkedIn"
+    if (document.title) {
+      const titleParts = document.title.split(/\s*[-|–—]\s*/);
+      if (titleParts.length >= 2) {
+        const raw = titleParts[0].trim();
+        const cleaned = raw.replace(/^\(\d+\)\s*/, '');
+        if (cleaned.length > 3 && !cleaned.match(/^(top|jobs|linkedin|home|feed|messaging|notifications|my network|mein netzwerk|nachrichten|suche)\b/i)) {
+          data.position = cleaned;
+          console.log('[Lazy Worker] LinkedIn: Found position via document.title:', cleaned);
+        }
+      }
+    }
+
     // Strategy A: Any heading (h1, h2, h3) in detail panel
-    const headings = searchScope.querySelectorAll('h1, h2, h3');
-    for (const el of headings) {
-      const text = el.textContent.trim();
-      if (isValidPositionText(text)) {
-        data.position = text;
-        console.log('[Lazy Worker] LinkedIn: Found position via heading:', text);
-        break;
+    if (!data.position) {
+      const headings = searchScope.querySelectorAll('h1, h2, h3');
+      for (const el of headings) {
+        const text = el.textContent.trim();
+        if (isValidPositionText(text)) {
+          data.position = text;
+          console.log('[Lazy Worker] LinkedIn: Found position via heading:', text);
+          break;
+        }
       }
     }
 
