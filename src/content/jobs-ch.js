@@ -210,6 +210,87 @@ async function captureApplication() {
 }
 
 /**
+ * Find the right-side job detail panel on jobs.ch/jobup.ch split-view.
+ * Returns the container element or document as fallback.
+ */
+function findDetailPanel() {
+  // Strategy 1: Find the container that holds the Apply button
+  const applyBtns = document.querySelectorAll('a, button');
+  for (const btn of applyBtns) {
+    const text = (btn.textContent || '').toLowerCase().trim();
+    if (text === 'apply' || text === 'bewerben' || text === 'jetzt bewerben') {
+      // Walk up to find a large container (the detail panel)
+      let parent = btn.parentElement;
+      for (let i = 0; i < 10 && parent; i++) {
+        const rect = parent.getBoundingClientRect();
+        if (rect.width > 400 && rect.height > 300) {
+          console.log('[Lazy Worker] jobs.ch: Found detail panel via Apply button ancestor');
+          return parent;
+        }
+        parent = parent.parentElement;
+      }
+    }
+  }
+
+  // Strategy 2: Known jobs.ch detail panel selectors
+  const panelSelectors = [
+    '[data-cy="job-detail"]',
+    '[data-testid="job-detail"]',
+    '[class*="JobDetail"]',
+    '[class*="job-detail"]',
+    '[class*="jobDetail"]',
+    'article[class*="detail"]',
+    'main [class*="detail"]',
+    'section[class*="detail"]',
+  ];
+
+  for (const sel of panelSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      console.log('[Lazy Worker] jobs.ch: Found detail panel via selector:', sel);
+      return el;
+    }
+  }
+
+  // Strategy 3: Geometric — find large right-side container
+  const containers = document.querySelectorAll('div, section, article, main');
+  let best = null;
+  let bestScore = 0;
+  for (const el of containers) {
+    const rect = el.getBoundingClientRect();
+    // Right side, large enough to be the detail panel
+    if (rect.left > 300 && rect.width > 400 && rect.height > 300) {
+      const score = rect.width * rect.height;
+      if (score > bestScore) {
+        bestScore = score;
+        best = el;
+      }
+    }
+  }
+  if (best) {
+    console.log('[Lazy Worker] jobs.ch: Found detail panel via geometry');
+    return best;
+  }
+
+  console.log('[Lazy Worker] jobs.ch: No detail panel found, using full document');
+  return document;
+}
+
+/**
+ * Search for text in element using multiple selectors
+ */
+function getTextInContainer(container, selectors) {
+  for (const selector of selectors) {
+    const el = container.querySelector(selector);
+    if (el) {
+      const text = el.textContent.trim();
+      if (text) return text;
+    }
+  }
+  return '';
+}
+
+/**
  * Scrape job data from DOM
  * @returns {Object|null}
  */
@@ -227,6 +308,9 @@ function scrapeFromDom() {
     workload: 'vollzeit'
   };
 
+  // Find the detail panel (right side in split-view)
+  const panel = findDetailPanel();
+
   // Company name selectors for jobs.ch
   const companySelectors = [
     '[data-cy="company-name"]',
@@ -234,6 +318,7 @@ function scrapeFromDom() {
     '.company-name',
     '.employer-name',
     'a[href*="/firma/"]',
+    'a[href*="/company/"]',
     '.job-company',
     'h2.company',
     '[class*="CompanyName"]',
@@ -242,9 +327,38 @@ function scrapeFromDom() {
     'span[itemprop="hiringOrganization"]'
   ];
 
-  data.company = cleanCompanyName(getTextFromSelectors(companySelectors));
+  data.company = cleanCompanyName(getTextInContainer(panel, companySelectors));
 
-  // Position/Title selectors
+  // Fallback: find links to company pages in the detail panel
+  if (!data.company && panel !== document) {
+    const companyLinks = panel.querySelectorAll('a[href*="/firma/"], a[href*="/company/"], a[href*="/unternehmen/"]');
+    for (const link of companyLinks) {
+      const text = link.textContent.trim();
+      if (text && text.length > 1 && text.length < 100) {
+        data.company = cleanCompanyName(text);
+        console.log('[Lazy Worker] jobs.ch: Found company via link:', data.company);
+        break;
+      }
+    }
+  }
+
+  // Fallback: company name is often the bold/strong text near the logo at the top
+  if (!data.company && panel !== document) {
+    const topTexts = panel.querySelectorAll('strong, b, [class*="ompany"], [class*="employer"], [class*="organization"]');
+    for (const el of topTexts) {
+      const text = el.textContent.trim();
+      if (text && text.length > 2 && text.length < 100 &&
+          !text.toLowerCase().includes('apply') &&
+          !text.toLowerCase().includes('bewerben') &&
+          !text.toLowerCase().includes('save')) {
+        data.company = cleanCompanyName(text);
+        console.log('[Lazy Worker] jobs.ch: Found company via bold text:', data.company);
+        break;
+      }
+    }
+  }
+
+  // Position/Title selectors — search in detail panel
   const titleSelectors = [
     '[data-cy="job-title"]',
     '[data-testid="job-title"]',
@@ -257,9 +371,9 @@ function scrapeFromDom() {
     '[class*="job-title"]'
   ];
 
-  data.position = cleanJobTitle(getTextFromSelectors(titleSelectors));
+  data.position = cleanJobTitle(getTextInContainer(panel, titleSelectors));
 
-  // Location selectors
+  // Location selectors — search in detail panel
   const locationSelectors = [
     '[data-cy="job-location"]',
     '[data-testid="location"]',
@@ -271,34 +385,31 @@ function scrapeFromDom() {
     '.job-header [class*="location"]'
   ];
 
-  const locationText = getTextFromSelectors(locationSelectors);
+  const locationText = getTextInContainer(panel, locationSelectors);
   if (locationText) {
     const parsedLocation = parseSwissLocation(locationText);
     data.location = { ...data.location, ...parsedLocation };
   }
 
-  // Workload/Employment type
-  const workloadSelectors = [
-    '[data-cy="job-workload"]',
-    '[data-testid="workload"]',
-    '.workload',
-    '.pensum',
-    '[class*="workload"]',
-    '[class*="Workload"]',
-    '[class*="employment"]'
-  ];
-
-  const workloadText = getTextFromSelectors(workloadSelectors);
-  data.workload = parseWorkload(workloadText);
-
-  // Also check page text for workload percentage
-  const pageText = document.body.innerText || '';
-  const percentMatch = pageText.match(/(\d{2,3})\s*%\s*(Pensum|Arbeitszeit)?/i);
+  // Workload — search in detail panel text
+  const panelText = panel.textContent || '';
+  const percentMatch = panelText.match(/(\d{2,3})\s*[–-]\s*(\d{2,3})\s*%/);
   if (percentMatch) {
-    const percent = parseInt(percentMatch[1]);
-    if (percent < 100) {
+    const maxPercent = parseInt(percentMatch[2]);
+    if (maxPercent < 100) {
       data.workload = 'teilzeit';
     }
+  } else {
+    const singlePercent = panelText.match(/(\d{2,3})\s*%/);
+    if (singlePercent) {
+      const percent = parseInt(singlePercent[1]);
+      if (percent < 100) {
+        data.workload = 'teilzeit';
+      }
+    }
+  }
+  if (panelText.match(/part[\s-]?time|teilzeit/i)) {
+    data.workload = 'teilzeit';
   }
 
   return data;
