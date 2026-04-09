@@ -494,304 +494,169 @@ function scrapeJobPage() {
   if (isJobsCh) {
     console.log('[Lazy Worker] Detected jobs.ch - using specific scraper');
 
-    // On jobs.ch, the layout is: left sidebar (job list) | right detail panel
-    // We need to find the DETAIL PANEL only, not the sidebar
-
-    // BLACKLIST: These are NOT company names (common false positives)
-    const blacklistedCompanyNames = [
-      'www', 'http', 'https', 'jobs', 'job', 'stelle', 'stellen',
-      'arbeit', 'karriere', 'career', 'careers', 'apply', 'bewerben',
-      'search', 'suche', 'filter', 'sort', 'alle', 'mehr', 'view',
-      'details', 'description', 'beschreibung', 'info', 'information',
-      'jobcloud', '2026', '2025', '2024', '2023', 'copyright', 'impressum', 'datenschutz'
-    ];
-
-    // Helper function to check if element is in the MAIN/LARGER section (right panel)
-    function isInMainSection(el) {
-      const rect = el.getBoundingClientRect();
-
-      // Must be visible
-      if (rect.width === 0 || rect.height === 0) return false;
-
-      // On jobs.ch the left sidebar is ~370px wide
-      // Element should start at least 300px from left edge to be in detail panel
-      // This is more permissive to catch elements near the panel edge
-      const isRightSide = rect.left >= 300;
-
-      // Must be reasonably sized (not tiny UI elements)
-      const isNotTiny = rect.width > 100 && rect.height > 10;
-
-      return isRightSide && isNotTiny;
-    }
-
-    // Helper to validate company name
-    function isValidCompanyName(text) {
-      if (!text || text.length < 2 || text.length > 120) return false;
-
+    // Helper: reject platform/UI names
+    function isInvalidCompany(text) {
+      if (!text || text.length < 2 || text.length > 120) return true;
       const lower = text.toLowerCase().trim();
-
-      // Reject copyright notices and platform names (partial match)
-      if (lower.includes('©') || lower.includes('copyright') ||
-          lower.includes('jobcloud') || lower.includes('job cloud') ||
-          lower.includes('jobs.ch') || lower.includes('jobup')) return false;
-
-      // Check blacklist
-      for (const bad of blacklistedCompanyNames) {
-        if (lower === bad || lower === bad + '.ch' || lower === 'www.' + bad) return false;
-      }
-
-      // STRICT: Reject anything with "WWW" in it (case insensitive)
-      if (lower.includes('www')) return false;
-
-      // Reject URLs
-      if (lower.includes('http://') || lower.includes('https://') || lower.includes('.ch/') || lower.includes('.com/')) return false;
-
-      // Reject if too short or looks like abbreviation only (unless it's a known suffix)
-      if (text.length <= 3 && !text.match(/^(AG|SA|SE)$/i)) return false;
-
-      // Reject UI text
-      if (lower.includes('arbeitgeber') || lower.includes('inserieren') ||
-          lower.includes('kostenlos') || lower.includes('für ') ||
-          lower.includes('alle jobs') || lower.includes('mehr jobs') ||
-          lower.includes('job alert') || lower.includes('merken') ||
-          lower.includes('teilen') || lower.includes('drucken') ||
-          lower.includes('weitere') || lower.includes('jobsuchen') ||
-          lower.includes('relevante')) return false;
-
-      return true;
+      return lower.includes('©') || lower.includes('copyright') ||
+             lower.includes('jobcloud') || lower.includes('job cloud') ||
+             lower.includes('jobs.ch') || lower.includes('jobup') ||
+             lower.includes('www') || lower.includes('http') ||
+             lower.includes('bewerben') || lower.includes('apply') ||
+             lower.includes('merken') || lower.includes('save') ||
+             lower.includes('teilen') || lower.includes('share') ||
+             lower.includes('impressum') || lower.includes('datenschutz') ||
+             lower.includes('alle jobs') || lower.includes('job alert') ||
+             lower.match(/^\d/);
     }
 
-    console.log('[Lazy Worker] Using main section detection for jobs.ch');
+    // 1. Find detail panel using jobs.ch data attributes (most reliable)
+    const panel = document.querySelector('[data-cy="vacancy-layout-standard"]') ||
+                  document.querySelector('[data-cy="job-detail"]') ||
+                  document.querySelector('[data-testid="job-detail"]') ||
+                  document.querySelector('[class*="JobDetail"]') ||
+                  document.querySelector('[class*="job-detail"]');
 
-    // 1. COMPANY - Multiple strategies for jobs.ch
-
-    // Strategy A: Find the detail container first, then search within it
-    // jobs.ch typically has a container for the job detail on the right
-    const detailContainers = document.querySelectorAll('[class*="detail"], [class*="Detail"], [class*="job-content"], [class*="JobContent"], article, main');
-    let detailContainer = null;
-
-    for (const container of detailContainers) {
-      if (isInMainSection(container)) {
-        detailContainer = container;
-        console.log('[Lazy Worker] Found detail container:', container.className || container.tagName);
-        break;
-      }
+    if (panel) {
+      console.log('[Lazy Worker] Found detail panel via data-cy/selector');
     }
 
-    // Strategy B: Look for company name patterns (AG, GmbH, SA, etc.) in detail area
-    const searchScope = detailContainer || document;
+    const searchScope = panel || document;
 
-    // Company suffix regex - matches "Name AG", "Name GmbH", etc.
-    const companySuffixRegex = /^(.{2,})\s+(AG|GmbH|SA|Sàrl|Ltd\.?|Inc\.?|Corp\.?|School|Bank|Group|Gruppe|International|Schweiz|Swiss|Holding|Foundation|Stiftung)\.?\s*$/i;
+    // 2. COMPANY — search within the detail panel
 
-    // First: Search ALL elements on the page for company patterns (very thorough)
-    const allPageElements = document.querySelectorAll('a, span, div, p, h1, h2, h3, h4, strong, b');
-    console.log('[Lazy Worker] Searching', allPageElements.length, 'elements for company');
-
-    for (const el of allPageElements) {
-      // Check position - must be in right panel (x >= 300)
-      const rect = el.getBoundingClientRect();
-      if (rect.left < 300 || rect.width === 0) continue;
-
-      // Get the direct text content (without deeply nested children)
-      let text = el.textContent.trim();
-
-      // For elements with lots of text, skip (probably a container)
-      if (text.length > 100 || text.length < 4) continue;
-
-      // Check if this exact text matches company pattern
-      const match = text.match(companySuffixRegex);
-      if (match && isValidCompanyName(text)) {
-        data.company = text;
-        console.log('[Lazy Worker] Found company:', text, 'at x:', rect.left);
-        break;
-      }
-    }
-
-    // Second: If still no company, look for links with /firma/ in href
+    // Strategy A: First img with meaningful alt text (company logo)
     if (!data.company) {
-      const firmaLinks = document.querySelectorAll('a[href*="/firma/"], a[href*="/company/"], a[href*="/arbeitgeber/"]');
-      for (const link of firmaLinks) {
-        const rect = link.getBoundingClientRect();
-        if (rect.left < 300) continue;
+      const imgs = searchScope.querySelectorAll('img[alt]');
+      for (const img of imgs) {
+        const alt = img.alt.trim();
+        if (alt.length > 2 && alt.length < 100 && !isInvalidCompany(alt) &&
+            !alt.toLowerCase().includes('icon') && !alt.toLowerCase().includes('avatar')) {
+          data.company = alt;
+          console.log('[Lazy Worker] Found company via img alt:', alt);
+          break;
+        }
+      }
+    }
 
+    // Strategy B: Links to company pages
+    if (!data.company) {
+      const companyLinks = searchScope.querySelectorAll('a[href*="/firma/"], a[href*="/company/"], a[href*="/arbeitgeber/"]');
+      for (const link of companyLinks) {
         const text = link.textContent.trim();
-        if (text.length >= 3 && text.length <= 100 && isValidCompanyName(text)) {
+        if (text.length >= 3 && text.length <= 100 && !isInvalidCompany(text)) {
           data.company = text;
-          console.log('[Lazy Worker] Found company via firma link:', text);
+          console.log('[Lazy Worker] Found company via link:', text);
           break;
         }
       }
     }
 
-    // Strategy C: Look for company name at TOP of detail panel (near logo)
-    // On jobs.ch, company name is often displayed prominently at top, even without AG/GmbH
+    // Strategy C: Prominent text near the top of the panel (company name + location area)
+    // On jobs.ch, the header shows: [logo] CompanyName \n Location
     if (!data.company) {
-      // Look for links/text in the header area of the job detail (top 300px of viewport, right panel)
-      const headerElements = document.querySelectorAll('a, span, div, p');
-      for (const el of headerElements) {
-        const rect = el.getBoundingClientRect();
-        // Must be in right panel (x >= 300) AND in top area (y < 250)
-        if (rect.left < 300 || rect.top > 250 || rect.width === 0) continue;
+      // Look at direct children elements at the start of the panel for short text
+      const candidates = searchScope.querySelectorAll('a, span, div, p, h2, h3, strong');
+      for (const el of candidates) {
+        // Only look at elements near the top of the panel
+        const panelRect = searchScope.getBoundingClientRect?.() || { top: 0 };
+        const elRect = el.getBoundingClientRect();
+        // Must be within first 200px of the panel
+        if (elRect.top - panelRect.top > 200) continue;
+        if (elRect.width === 0 || elRect.height === 0) continue;
 
         const text = el.textContent.trim();
+        if (text.length < 3 || text.length > 80) continue;
+        if (isInvalidCompany(text)) continue;
 
-        // Skip if too long or too short
-        if (text.length < 2 || text.length > 60) continue;
-
-        // Skip blacklisted words
         const lower = text.toLowerCase();
-        let isBlacklisted = false;
-        for (const bad of blacklistedCompanyNames) {
-          if (lower === bad || lower.includes('©') || lower.includes('jobcloud')) {
-            isBlacklisted = true;
-            break;
-          }
-        }
-        if (isBlacklisted) continue;
+        // Skip dates, job meta, location
+        if (lower.match(/^\d/) || lower.includes('day') || lower.includes('ago') ||
+            lower.includes('vor ') || lower.includes('temporary') || lower.includes('permanent') ||
+            lower.includes('vollzeit') || lower.includes('teilzeit') || lower.includes('full-time') ||
+            lower.includes('part-time') || lower.includes('hybrid') || lower.includes('remote') ||
+            lower.includes('fluent') || lower.includes('intermediate') ||
+            lower.includes('log in') || lower.includes('salary') || lower.includes('lohn')) continue;
 
-        // Skip obvious non-company text
-        if (lower.includes('veröffentlicht') || lower.includes('publié') ||
-            lower.includes('vor ') || lower.includes('ago') ||
-            lower.includes('bewerben') || lower.includes('merken') ||
-            lower.includes('teilen') || lower.match(/^\d/) ||
-            lower.includes('hybrid') || lower.includes('remote') ||
-            lower.includes('vollzeit') || lower.includes('teilzeit')) continue;
-
-        // Check if this looks like a company name (not a job title or location)
-        // Company names often have: Capital letter, no job-related words
-        if (text.match(/^[A-ZÄÖÜ]/) &&
-            !lower.includes('engineer') && !lower.includes('manager') &&
-            !lower.includes('developer') && !lower.includes('analyst') &&
-            !lower.includes('schweiz') && !lower.includes('switzerland') &&
-            !lower.includes('oerlikon') && !lower.includes('zürich')) {
-
-          // Check if element is a link (company names are often clickable)
-          if (el.tagName === 'A' || el.closest('a')) {
+        // Prefer links (company name is usually clickable on jobs.ch)
+        if (el.tagName === 'A' || el.closest('a')) {
+          // Make sure it's not the job title (which is in h1)
+          if (!el.closest('h1')) {
             data.company = text;
-            console.log('[Lazy Worker] Found company in header area:', text);
+            console.log('[Lazy Worker] Found company in panel header:', text);
             break;
           }
         }
       }
     }
 
-    // Strategy D: Look for any element near "Arbeitgeber:" label
+    // Strategy D: Company suffix pattern (AG, GmbH, etc.) anywhere in detail panel
     if (!data.company) {
-      const allElements = document.querySelectorAll('*');
-      for (const el of allElements) {
-        const rect = el.getBoundingClientRect();
-        if (rect.left < 300) continue;
-
+      const suffixRegex = /^(.{2,})\s+(AG|GmbH|SA|Sàrl|Ltd\.?|Inc\.?|Corp\.?|Group|Gruppe|Holding|Stiftung|Foundation)\.?\s*$/i;
+      const allEls = searchScope.querySelectorAll('a, span, div, p, strong, b');
+      for (const el of allEls) {
         const text = el.textContent.trim();
-        if (text.match(/^(Arbeitgeber|Unternehmen|Firma|Company|Employer)\s*:?\s*$/i)) {
-          const parent = el.parentElement;
-          if (parent) {
-            const siblings = Array.from(parent.children);
-            const idx = siblings.indexOf(el);
-            if (idx >= 0 && idx < siblings.length - 1) {
-              const nextText = siblings[idx + 1].textContent.trim();
-              if (isValidCompanyName(nextText) && nextText.length < 100) {
-                data.company = nextText;
-                console.log('[Lazy Worker] Found company via label:', nextText);
-                break;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // 2. POSITION - Look for the job title heading IN MAIN SECTION
-    // Blacklist of UI text that is NOT a job title
-    const positionBlacklist = [
-      'auf einen blick', 'at a glance', 'overview',
-      'marketing jobs', 'stellenangebote', 'job alert', 'alle stellen',
-      'weitere', 'relevante', 'jobsuchen', 'ähnliche', 'mehr jobs',
-      'empfohlene', 'passende', 'benefits', 'vorteile', 'anforderungen',
-      'requirements', 'aufgaben', 'tasks', 'responsibilities',
-      'qualifikationen', 'qualifications', 'wir bieten', 'we offer',
-      'über uns', 'about us', 'kontakt', 'contact', 'bewerbung',
-      'dein profil', 'ihr profil', 'your profile', 'was wir bieten',
-      'deine aufgaben', 'ihre aufgaben', 'passt dieser job'
-    ];
-
-    // First try h1 (most likely to be the job title)
-    const h1Elements = document.querySelectorAll('h1');
-    for (const h of h1Elements) {
-      if (!isInMainSection(h)) continue;
-
-      const text = h.textContent.trim();
-      const lower = text.toLowerCase();
-
-      // Check against blacklist
-      let isBlacklisted = false;
-      for (const bad of positionBlacklist) {
-        if (lower.includes(bad)) {
-          isBlacklisted = true;
+        if (text.length > 100 || text.length < 4) continue;
+        if (text.match(suffixRegex) && !isInvalidCompany(text)) {
+          data.company = text;
+          console.log('[Lazy Worker] Found company via suffix pattern:', text);
           break;
         }
       }
+    }
 
-      if (!isBlacklisted && text.length > 3 && text.length < 150 &&
-          !text.match(/^\d+\s*(Jobs|Stellen)/i)) {
+    // 3. POSITION — h1 in the detail panel
+    const h1 = searchScope.querySelector('h1');
+    if (h1) {
+      const text = h1.textContent.trim();
+      if (text.length > 3 && text.length < 150 && !text.match(/^\d+\s*(Jobs|Stellen)/i)) {
         data.position = text;
         console.log('[Lazy Worker] Found position via h1:', text);
-        break;
       }
     }
 
-    // If no h1 found, try h2/h3
+    // Fallback: h2/h3
     if (!data.position) {
-      const headings = document.querySelectorAll('h2, h3');
+      const headings = searchScope.querySelectorAll('h2, h3');
       for (const h of headings) {
-        if (!isInMainSection(h)) continue;
-
         const text = h.textContent.trim();
         const lower = text.toLowerCase();
-
-        let isBlacklisted = false;
-        for (const bad of positionBlacklist) {
-          if (lower.includes(bad)) {
-            isBlacklisted = true;
-            break;
-          }
-        }
-
-        if (!isBlacklisted && text.length > 3 && text.length < 150 &&
-            !text.match(/^\d+\s*(Jobs|Stellen)/i)) {
+        if (text.length > 3 && text.length < 150 &&
+            !text.match(/^\d+\s*(Jobs|Stellen)/i) &&
+            !lower.includes('about the job') && !lower.includes('über uns') &&
+            !lower.includes('anforderungen') && !lower.includes('aufgaben') &&
+            !lower.includes('benefits')) {
           data.position = text;
-          console.log('[Lazy Worker] Found position via h2/h3:', text);
+          console.log('[Lazy Worker] Found position via heading:', text);
           break;
         }
       }
     }
 
-    // 3. LOCATION - Look for Swiss cities in the main panel area
+    // 4. LOCATION — look for Swiss cities in the detail panel
     const cities = ['Zürich', 'Basel', 'Bern', 'Genf', 'Lausanne', 'Winterthur', 'Luzern', 'Lugano',
                    'Zug', 'St. Gallen', 'Adliswil', 'Dübendorf', 'Opfikon', 'Kloten', 'Uster',
                    'Dietikon', 'Wetzikon', 'Baden', 'Aarau', 'Chur', 'Schaffhausen', 'Thun',
-                   'Biel', 'Fribourg', 'Neuchâtel', 'Sion', 'Hünenberg', 'Wädenswil', 'Horgen',
-                   'Meilen', 'Küsnacht', 'Zollikon', 'Kilchberg', 'Thalwil', 'Rüschlikon'];
+                   'Biel', 'Burgdorf', 'Fribourg', 'Neuchâtel', 'Sion', 'Hünenberg', 'Wädenswil',
+                   'Horgen', 'Meilen', 'Küsnacht', 'Zollikon', 'Kilchberg', 'Thalwil', 'Rüschlikon'];
 
-    const mainSectionElements = searchScope.querySelectorAll('span, div, p, li');
-    for (const el of mainSectionElements) {
-      if (!isInMainSection(el)) continue;
-
+    const locationEls = searchScope.querySelectorAll('span, div, p, li');
+    for (const el of locationEls) {
       const text = el.textContent.trim();
-      if (text.length < 60) {
-        for (const city of cities) {
-          if (text === city || text.includes(city)) {
-            data.city = city;
-            console.log('[Lazy Worker] Found city:', city);
-            break;
-          }
+      if (text.length > 60) continue;
+      for (const city of cities) {
+        if (text.includes(city)) {
+          data.city = city;
+          // Try to extract PLZ
+          const plzMatch = text.match(/(\d{4})\s/);
+          if (plzMatch) data.plz = plzMatch[1];
+          console.log('[Lazy Worker] Found city:', city);
+          break;
         }
-        if (data.city) break;
       }
+      if (data.city) break;
     }
 
-    // If we found company or position, return
     if (data.company || data.position) {
       console.log('[Lazy Worker] jobs.ch scraped data:', data);
       return data;
