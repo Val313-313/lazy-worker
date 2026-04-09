@@ -46,6 +46,9 @@ function observeApplyButtons() {
  * @param {Event} event
  */
 function handleClick(event) {
+  // Bail out if extension context was invalidated (after extension reload)
+  if (!chrome?.runtime?.id) return;
+
   const target = event.target;
 
   // Check if clicked element or its parent is an apply button
