@@ -223,12 +223,9 @@ async function captureApplication(applyButton) {
  */
 function isPlatformName(name) {
   if (!name) return true;
-  const lower = name.toLowerCase().replace(/\s+/g, '');
-  const platformNames = [
-    'jobcloud', 'job cloud', 'jobs.ch', 'jobsch', 'jobup',
-    'jobup.ch', 'jobupch', 'jobcloud ag', 'jobcloudag'
-  ];
-  return platformNames.some(p => lower === p.replace(/\s+/g, ''));
+  const lower = name.toLowerCase();
+  return lower.includes('jobcloud') || lower.includes('job cloud') ||
+         lower.includes('jobs.ch') || lower.includes('jobup');
 }
 
 /**
@@ -238,7 +235,16 @@ function isPlatformName(name) {
  * @returns {Element}
  */
 function findDetailPanel(applyButton) {
-  // Strategy 1: Walk up from the actual clicked apply button
+  // Strategy 1: jobs.ch data-cy attribute (most reliable)
+  const dataCyPanel = document.querySelector('[data-cy="vacancy-layout-standard"]') ||
+                      document.querySelector('[data-cy="job-detail"]') ||
+                      document.querySelector('[data-testid="job-detail"]');
+  if (dataCyPanel) {
+    console.log('[Lazy Worker] jobs.ch: Found detail panel via data-cy');
+    return dataCyPanel;
+  }
+
+  // Strategy 2: Walk up from the actual clicked apply button
   if (applyButton) {
     let parent = applyButton.parentElement;
     for (let i = 0; i < 15 && parent && parent !== document.body; i++) {
@@ -251,16 +257,12 @@ function findDetailPanel(applyButton) {
     }
   }
 
-  // Strategy 2: Known jobs.ch detail panel selectors
+  // Strategy 3: Known class-based selectors
   const panelSelectors = [
-    '[data-cy="job-detail"]',
-    '[data-testid="job-detail"]',
     '[class*="JobDetail"]',
     '[class*="job-detail"]',
     '[class*="jobDetail"]',
     'article[class*="detail"]',
-    'main [class*="detail"]',
-    'section[class*="detail"]',
   ];
 
   for (const sel of panelSelectors) {
@@ -269,25 +271,6 @@ function findDetailPanel(applyButton) {
       console.log('[Lazy Worker] jobs.ch: Found detail panel via selector:', sel);
       return el;
     }
-  }
-
-  // Strategy 3: Geometric — find large right-side container
-  const containers = document.querySelectorAll('div, section, article, main');
-  let best = null;
-  let bestScore = 0;
-  for (const el of containers) {
-    const rect = el.getBoundingClientRect();
-    if (rect.left > 300 && rect.width > 400 && rect.height > 300) {
-      const score = rect.width * rect.height;
-      if (score > bestScore) {
-        bestScore = score;
-        best = el;
-      }
-    }
-  }
-  if (best) {
-    console.log('[Lazy Worker] jobs.ch: Found detail panel via geometry');
-    return best;
   }
 
   console.log('[Lazy Worker] jobs.ch: No detail panel found, using full document');
@@ -330,36 +313,24 @@ function scrapeFromDom(applyButton) {
   // Find the detail panel (right side in split-view)
   const panel = findDetailPanel(applyButton);
 
-  // Company name selectors for jobs.ch
-  const companySelectors = [
-    '[data-cy="company-name"]',
-    '[data-testid="company-name"]',
-    '.company-name',
-    '.employer-name',
-    'a[href*="/firma/"]',
-    'a[href*="/company/"]',
-    '.job-company',
-    'h2.company',
-    '[class*="CompanyName"]',
-    '[class*="company-name"]',
-    '.job-header .subtitle',
-    'span[itemprop="hiringOrganization"]'
-  ];
-
-  data.company = cleanCompanyName(getTextInContainer(panel, companySelectors));
-
-  // Reject platform names from selector results
-  if (isPlatformName(data.company)) {
-    console.log('[Lazy Worker] jobs.ch: Selector returned platform name, discarding:', data.company);
-    data.company = '';
+  // Helper: reject platform/UI/badge names
+  function isInvalidCompany(text) {
+    if (!text) return true;
+    const lower = text.toLowerCase();
+    return isPlatformName(text) ||
+           lower.includes('©') || lower.includes('copyright') ||
+           lower.includes('attraktiv') || lower.includes('arbeitgeber') ||
+           lower.includes('award') || lower.includes('auszeichnung') ||
+           lower.includes('zertif') || lower.includes('great place') ||
+           lower.includes('top employer');
   }
 
-  // Fallback: find links to company pages in the detail panel
+  // Strategy A: Company page links (most reliable)
   if (!data.company && panel !== document) {
-    const companyLinks = panel.querySelectorAll('a[href*="/firma/"], a[href*="/company/"], a[href*="/unternehmen/"]');
+    const companyLinks = panel.querySelectorAll('a[href*="/firma/"], a[href*="/company/"], a[href*="/arbeitgeber/"]');
     for (const link of companyLinks) {
       const text = link.textContent.trim();
-      if (text && text.length > 1 && text.length < 100 && !isPlatformName(text)) {
+      if (text.length >= 3 && text.length <= 100 && !isInvalidCompany(text)) {
         data.company = cleanCompanyName(text);
         console.log('[Lazy Worker] jobs.ch: Found company via link:', data.company);
         break;
@@ -367,35 +338,60 @@ function scrapeFromDom(applyButton) {
     }
   }
 
-  // Fallback: logo alt-text often contains the real company name
+  // Strategy B: Prominent link near the top of the panel
   if (!data.company && panel !== document) {
-    const logos = panel.querySelectorAll('img[alt], img[title]');
-    for (const img of logos) {
-      const alt = (img.alt || img.title || '').trim();
-      if (alt && alt.length > 2 && alt.length < 100 &&
-          !isPlatformName(alt) &&
-          !alt.toLowerCase().includes('logo') &&
-          !alt.toLowerCase().includes('icon') &&
-          !alt.toLowerCase().includes('avatar')) {
-        data.company = cleanCompanyName(alt);
-        console.log('[Lazy Worker] jobs.ch: Found company via logo alt-text:', data.company);
+    const candidates = panel.querySelectorAll('a, span, div, p, h2, h3, strong');
+    const panelRect = panel.getBoundingClientRect();
+    for (const el of candidates) {
+      const elRect = el.getBoundingClientRect();
+      if (elRect.top - panelRect.top > 200) continue;
+      if (elRect.width === 0 || elRect.height === 0) continue;
+
+      const text = el.textContent.trim();
+      if (text.length < 3 || text.length > 80) continue;
+      if (isInvalidCompany(text)) continue;
+
+      const lower = text.toLowerCase();
+      if (lower.match(/^\d/) || lower.includes('ago') || lower.includes('vor ') ||
+          lower.includes('temporary') || lower.includes('permanent') ||
+          lower.includes('vollzeit') || lower.includes('teilzeit') ||
+          lower.includes('hybrid') || lower.includes('remote') ||
+          lower.includes('fluent') || lower.includes('intermediate') ||
+          lower.includes('log in') || lower.includes('salary')) continue;
+
+      if ((el.tagName === 'A' || el.closest('a')) && !el.closest('h1')) {
+        data.company = cleanCompanyName(text);
+        console.log('[Lazy Worker] jobs.ch: Found company in panel header:', data.company);
         break;
       }
     }
   }
 
-  // Fallback: company name is often the bold/strong text near the logo at the top
+  // Strategy C: img alt text (company logo, skip badges)
   if (!data.company && panel !== document) {
-    const topTexts = panel.querySelectorAll('strong, b, [class*="ompany"], [class*="employer"], [class*="organization"]');
-    for (const el of topTexts) {
+    const imgs = panel.querySelectorAll('img[alt]');
+    for (const img of imgs) {
+      const alt = img.alt.trim();
+      if (alt.length > 2 && alt.length < 100 && !isInvalidCompany(alt) &&
+          !alt.toLowerCase().includes('icon') && !alt.toLowerCase().includes('avatar') &&
+          !alt.toLowerCase().includes('badge')) {
+        data.company = cleanCompanyName(alt);
+        console.log('[Lazy Worker] jobs.ch: Found company via img alt:', data.company);
+        break;
+      }
+    }
+  }
+
+  // Strategy D: Company suffix pattern (AG, GmbH, etc.)
+  if (!data.company && panel !== document) {
+    const suffixRegex = /^(.{2,})\s+(AG|GmbH|SA|Sàrl|Ltd\.?|Inc\.?|Corp\.?|Group|Holding|Stiftung)\.?\s*$/i;
+    const allEls = panel.querySelectorAll('a, span, div, p, strong, b');
+    for (const el of allEls) {
       const text = el.textContent.trim();
-      if (text && text.length > 2 && text.length < 100 &&
-          !isPlatformName(text) &&
-          !text.toLowerCase().includes('apply') &&
-          !text.toLowerCase().includes('bewerben') &&
-          !text.toLowerCase().includes('save')) {
+      if (text.length > 100 || text.length < 4) continue;
+      if (text.match(suffixRegex) && !isInvalidCompany(text)) {
         data.company = cleanCompanyName(text);
-        console.log('[Lazy Worker] jobs.ch: Found company via bold text:', data.company);
+        console.log('[Lazy Worker] jobs.ch: Found company via suffix:', data.company);
         break;
       }
     }
