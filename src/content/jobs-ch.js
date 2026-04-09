@@ -415,6 +415,23 @@ function scrapeFromDom(applyButton) {
 
   data.position = cleanJobTitle(getTextInContainer(panel, titleSelectors));
 
+  // Fallback: if panel didn't contain the title, try in document
+  if (!data.position && panel !== document) {
+    data.position = cleanJobTitle(getTextInContainer(document, titleSelectors));
+    if (data.position) {
+      console.log('[Lazy Worker] jobs.ch: Found position via document fallback:', data.position);
+    }
+  }
+
+  // Fallback: page title (jobs.ch format: "Position - Company - Location | jobs.ch")
+  if (!data.position) {
+    const titleParts = document.title.split(/\s*[-|–—]\s*/);
+    if (titleParts.length >= 2 && titleParts[0].length > 3 && titleParts[0].length < 150) {
+      data.position = cleanJobTitle(titleParts[0].trim());
+      console.log('[Lazy Worker] jobs.ch: Found position via page title:', data.position);
+    }
+  }
+
   // Location selectors — search in detail panel
   const locationSelectors = [
     '[data-cy="job-location"]',
