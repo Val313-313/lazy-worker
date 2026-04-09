@@ -639,30 +639,28 @@ function scrapeJobPage() {
     function isValidJobTitle(text) {
       if (!text || text.length <= 3 || text.length >= 150) return false;
       const lower = text.toLowerCase();
-      return !text.match(/^\d+\s*(Jobs|Stellen)/i) &&
+      return !text.match(/^\d{2,}\s/) &&
+             !lower.includes('job offers') && !lower.includes('jobangebote') &&
              !lower.includes('about the job') && !lower.includes('über uns') &&
              !lower.includes('anforderungen') && !lower.includes('aufgaben') &&
              !lower.includes('benefits') && !lower.includes('skills') &&
              !lower.includes('are you paid') && !lower.includes('great fit');
     }
 
-    // Strategy A: h1 in panel
-    const h1 = searchScope.querySelector('h1');
-    if (h1 && isValidJobTitle(h1.textContent.trim())) {
-      data.position = h1.textContent.trim();
-      console.log('[Lazy Worker] Found position via h1 in panel:', data.position);
-    }
-
-    // Strategy B: h1 in document (panel might not contain the title)
-    if (!data.position && panel) {
-      const docH1 = document.querySelector('h1');
-      if (docH1 && isValidJobTitle(docH1.textContent.trim())) {
-        data.position = docH1.textContent.trim();
-        console.log('[Lazy Worker] Found position via h1 in document:', data.position);
+    // Strategy A: h1 in panel, then all h1s in document
+    const allH1s = panel
+      ? [...searchScope.querySelectorAll('h1'), ...document.querySelectorAll('h1')]
+      : [...document.querySelectorAll('h1')];
+    for (const el of allH1s) {
+      const text = el.textContent.trim();
+      if (isValidJobTitle(text)) {
+        data.position = text;
+        console.log('[Lazy Worker] Found position via h1:', text);
+        break;
       }
     }
 
-    // Strategy C: h2/h3 headings
+    // Strategy B: h2/h3 headings
     if (!data.position) {
       const headings = searchScope.querySelectorAll('h2, h3');
       for (const h of headings) {
@@ -675,11 +673,12 @@ function scrapeJobPage() {
       }
     }
 
-    // Strategy D: page title (jobs.ch format: "Position - Company - Location | jobs.ch")
+    // Strategy C: page title (jobs.ch format: "Position - Company - Location | jobs.ch")
     if (!data.position) {
       const titleParts = document.title.split(/\s*[-|–—]\s*/);
-      if (titleParts.length >= 2 && titleParts[0].length > 3 && titleParts[0].length < 150) {
-        data.position = titleParts[0].trim();
+      const candidate = titleParts[0]?.trim();
+      if (titleParts.length >= 2 && isValidJobTitle(candidate)) {
+        data.position = candidate;
         console.log('[Lazy Worker] Found position via page title:', data.position);
       }
     }

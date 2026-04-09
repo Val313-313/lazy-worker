@@ -413,21 +413,38 @@ function scrapeFromDom(applyButton) {
     '[class*="job-title"]'
   ];
 
-  data.position = cleanJobTitle(getTextInContainer(panel, titleSelectors));
+  // Helper: reject search result counts like "464 Marketing zürich job offers"
+  function isValidJobTitle(text) {
+    if (!text || text.length <= 3 || text.length >= 150) return false;
+    const lower = text.toLowerCase();
+    return !text.match(/^\d{2,}\s/) &&
+           !lower.includes('job offers') && !lower.includes('jobangebote');
+  }
 
-  // Fallback: if panel didn't contain the title, try in document
-  if (!data.position && panel !== document) {
-    data.position = cleanJobTitle(getTextInContainer(document, titleSelectors));
-    if (data.position) {
-      console.log('[Lazy Worker] jobs.ch: Found position via document fallback:', data.position);
+  // Try panel first, then document — iterate all h1s to skip search counts
+  const scopes = panel !== document ? [panel, document] : [document];
+  for (const scope of scopes) {
+    for (const sel of titleSelectors) {
+      const els = scope.querySelectorAll(sel);
+      for (const el of els) {
+        const text = cleanJobTitle(el.textContent.trim());
+        if (isValidJobTitle(text)) {
+          data.position = text;
+          console.log('[Lazy Worker] jobs.ch: Found position via', sel, ':', text);
+          break;
+        }
+      }
+      if (data.position) break;
     }
+    if (data.position) break;
   }
 
   // Fallback: page title (jobs.ch format: "Position - Company - Location | jobs.ch")
   if (!data.position) {
     const titleParts = document.title.split(/\s*[-|–—]\s*/);
-    if (titleParts.length >= 2 && titleParts[0].length > 3 && titleParts[0].length < 150) {
-      data.position = cleanJobTitle(titleParts[0].trim());
+    const candidate = cleanJobTitle(titleParts[0]?.trim());
+    if (titleParts.length >= 2 && isValidJobTitle(candidate)) {
+      data.position = candidate;
       console.log('[Lazy Worker] jobs.ch: Found position via page title:', data.position);
     }
   }
