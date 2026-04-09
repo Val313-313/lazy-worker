@@ -2,6 +2,26 @@
 
 Eine Chrome-Erweiterung für Schweizer Arbeitssuchende, die Bewerbungen automatisch erfasst und das RAV-Formular "Nachweis der persönlichen Arbeitsbemühungen" mit einem Klick ausfüllt.
 
+---
+
+## Installation
+
+### 1. Download
+
+➡️ **[Lazy-Worker-v1.0.0.zip herunterladen](https://github.com/Val313-313/lazy-worker/releases/latest/download/Lazy-Worker-v1.0.0.zip)**
+
+### 2. In Chrome installieren
+
+1. Die heruntergeladene ZIP-Datei **entpacken**
+2. `chrome://extensions/` im Browser öffnen
+3. **Developer mode** (oben rechts) aktivieren
+4. **"Load unpacked"** klicken
+5. Den **entpackten Ordner** `Lazy-Worker-v1.0.0` auswählen
+
+> **Hinweis:** Das `manifest.json` liegt im Root-Ordner. Chrome liest direkt vom Root — den ganzen Ordner auswählen, nicht einen Unterordner.
+
+---
+
 ## Features
 
 - **Automatische Erfassung**: Bewerbungen auf jobs.ch, LinkedIn und Indeed werden automatisch erkannt
@@ -9,19 +29,6 @@ Eine Chrome-Erweiterung für Schweizer Arbeitssuchende, die Bewerbungen automati
 - **Lokale Speicherung**: Alle Daten bleiben auf deinem Computer - keine Cloud, keine Server
 - **CSV-Export**: Exportiere alle Bewerbungen für deine Unterlagen
 - **Mehrsprachig**: Deutsch und Englisch
-
-## Installation (Entwicklermodus)
-
-1. **Icons generieren** (einmalig):
-   - Öffne `generate-icons.html` im Browser
-   - Lade alle drei Icon-Grössen herunter
-   - Verschiebe sie nach `src/assets/`
-
-2. **Extension laden**:
-   - Öffne Chrome und gehe zu `chrome://extensions/`
-   - Aktiviere "Entwicklermodus" (oben rechts)
-   - Klicke "Entpackte Erweiterung laden"
-   - Wähle den `Lazy Worker` Ordner
 
 ## Verwendung
 
