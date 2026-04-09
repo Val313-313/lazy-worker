@@ -4,21 +4,46 @@ Eine Chrome-Erweiterung für Schweizer Arbeitssuchende, die Bewerbungen automati
 
 ---
 
-## Installation
+## Installation (Schritt-für-Schritt)
 
-### 1. Download
+> Du brauchst keine Programmierkenntnisse! Folge einfach diesen Schritten:
 
-➡️ **[Lazy-Worker-v1.0.0.zip herunterladen](https://github.com/Val313-313/lazy-worker/releases/latest/download/Lazy-Worker-v1.0.0.zip)**
+### Schritt 1: Herunterladen
 
-### 2. In Chrome installieren
+Klicke auf den grossen Button unten — die Datei wird automatisch heruntergeladen:
 
-1. Die heruntergeladene ZIP-Datei **entpacken**
-2. `chrome://extensions/` im Browser öffnen
-3. **Developer mode** (oben rechts) aktivieren
-4. **"Load unpacked"** klicken
-5. Den **entpackten Ordner** `Lazy-Worker-v1.0.0` auswählen
+### **[>>> Lazy Worker herunterladen <<<](https://github.com/Val313-313/lazy-worker/releases/latest/download/Lazy-Worker-v1.0.0.zip)**
 
-> **Hinweis:** Das `manifest.json` liegt im Root-Ordner. Chrome liest direkt vom Root — den ganzen Ordner auswählen, nicht einen Unterordner.
+Es wird eine Datei namens `Lazy-Worker-v1.0.0.zip` in deinen Downloads-Ordner gespeichert.
+
+### Schritt 2: ZIP-Datei entpacken
+
+- **Mac:** Doppelklicke auf die `.zip`-Datei im Finder — es entsteht ein Ordner `Lazy-Worker-v1.0.0`
+- **Windows:** Rechtsklick auf die `.zip`-Datei → **"Alle extrahieren..."** klicken → **"Extrahieren"** bestätigen
+
+### Schritt 3: Chrome-Erweiterungen öffnen
+
+1. Öffne **Google Chrome**
+2. Tippe in die Adressleiste oben ein: `chrome://extensions/`
+3. Drücke **Enter**
+
+### Schritt 4: Entwicklermodus aktivieren
+
+Auf der Erweiterungen-Seite findest du **oben rechts** einen Schalter namens **"Developer mode"** (oder **"Entwicklermodus"**). Klicke darauf, sodass er **eingeschaltet** ist (blau).
+
+### Schritt 5: Erweiterung laden
+
+1. Klicke oben links auf den Button **"Load unpacked"** (oder **"Entpackte Erweiterung laden"**)
+2. Es öffnet sich ein Datei-Auswahl-Fenster
+3. Navigiere zu deinem **Downloads-Ordner**
+4. Wähle den **ganzen Ordner** `Lazy-Worker-v1.0.0` aus (nicht eine einzelne Datei darin!)
+5. Klicke **"Auswählen"** / **"Select"**
+
+### Fertig!
+
+Du siehst jetzt das 🦥 Lazy Worker Icon oben rechts in Chrome. Die Erweiterung ist installiert und einsatzbereit!
+
+> **Tipp:** Wenn das Icon nicht sichtbar ist, klicke auf das Puzzle-Symbol (🧩) oben rechts in Chrome und pinne "Lazy Worker" an.
 
 ---
 
