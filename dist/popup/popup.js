@@ -356,6 +356,13 @@ function scrapeJobPage() {
              !lower.includes('merken') &&
              !lower.includes('bewerben') &&
              !lower.includes('nicht mehr verfügbar') &&
+             !lower.includes('benachrichtigung') &&
+             !lower.includes('notification') &&
+             !lower.includes('nachricht') &&
+             !lower.includes('messaging') &&
+             !lower.includes('profil') &&
+             !lower.includes('netzwerk') &&
+             !lower.includes('network') &&
              !lower.match(/^(vor \d|posted|\d+ (day|week|monat|tag))/) &&
              !text.match(/^\(\d+\)/) &&
              !text.match(/^\d+\s*(treffer|job|stell)/i);
