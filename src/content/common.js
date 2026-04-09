@@ -237,19 +237,28 @@ export function cleanJobTitle(title) {
  * @returns {Promise<Object>}
  */
 export async function saveApplicationData(applicationData) {
+  // Check if extension context is still valid (can be lost after extension reload)
+  if (!chrome?.runtime?.sendMessage) {
+    throw new Error('Extension wurde aktualisiert. Bitte Seite neu laden (Ctrl+R).');
+  }
+
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      { action: 'saveApplication', data: applicationData },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else if (response && response.success) {
-          resolve(response.application);
-        } else {
-          reject(new Error(response?.error || 'Failed to save'));
+    try {
+      chrome.runtime.sendMessage(
+        { action: 'saveApplication', data: applicationData },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message || 'Extension-Verbindung verloren. Bitte Seite neu laden.'));
+          } else if (response && response.success) {
+            resolve(response.application);
+          } else {
+            reject(new Error(response?.error || 'Failed to save'));
+          }
         }
-      }
-    );
+      );
+    } catch (e) {
+      reject(new Error('Extension-Verbindung verloren. Bitte Seite neu laden (Ctrl+R).'));
+    }
   });
 }
 
