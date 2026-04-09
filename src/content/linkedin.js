@@ -45,6 +45,7 @@ function observeApplyButtons() {
  * @param {Event} event
  */
 function handleClick(event) {
+  if (!chrome?.runtime?.id) return;
   const target = event.target;
 
   // Check if clicked element is apply button
